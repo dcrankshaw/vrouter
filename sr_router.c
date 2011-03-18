@@ -12,6 +12,7 @@
  **********************************************************************/
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 
 
@@ -56,16 +57,61 @@ void sr_init(struct sr_instance* sr)
  *---------------------------------------------------------------------*/
 
 void sr_handlepacket(struct sr_instance* sr, 
-        uint8_t * packet/* lent */,
+        uint8_t *packet/* lent */,
         unsigned int len,
         char* interface/* lent */)
 {
+
     /* REQUIRES */
     assert(sr);
     assert(packet);
     assert(interface);
 
-    printf("*** -> Received packet of length %d \n",len);
+/*********************************************************
+Careful about memory allocation issues with incrementing packet
+
+***********************************************************/
+    printf("\n*** -> Received packet of length %d \n",len);
+    
+    int i;
+    for(i = 0; i < len; i++)
+    {
+    	printf("%x  %d\n", *(packet + i), i);
+    }
+    
+    struct sr_ethernet_hdr *eth = (struct sr_ethernet_hdr *)malloc(sizeof(struct sr_ethernet_hdr));
+    uint8_t *front = packet;
+    for(i = 0; i < ETHER_ADDR_LEN; i++)
+    {
+    	
+    	eth->ether_dhost[i] = *front++;
+    }
+    
+    for(i = 0; i < ETHER_ADDR_LEN; i++)
+    {
+    	
+    	eth->ether_shost[i] = *front++;
+    }
+    
+   
+    uint16_t temp = *front++;
+    temp = temp*256 + *front++;
+    eth->ether_type = temp;
+    switch(eth->ether_type)
+    {
+    	case ETHERTYPE_IP:
+    		/*handle_ip();*/
+    		printf("GOT an IP packet");
+    		break;
+    	case ETHERTYPE_ARP:
+    		/*handle_ARP();*/
+    		printf("Got an ARP packet");
+    		break;
+    	default:
+    		printf("%x", eth->ether_type);
+    }
+    
+    
 
 }/* end sr_ForwardPacket */
 
