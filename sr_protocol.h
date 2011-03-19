@@ -121,22 +121,6 @@ struct sr_ethernet_hdr
 #define ARPHDR_ETHER    1
 #endif
 
-#ifndef ICMPT_ECHOREPLY
-#define ICMPT_ECHOREPLY	0
-#endif
-
-#ifndef ICMPT_DESTUN
-#define ICMPT_DESTUN	3
-#endif
-
-#ifndef ICMPT_ECHOREQUEST
-#define ICMPT_ECHOREQUEST	8
-#endif
-
-#ifndef ICMPT_TIMEEX
-#define ICMPT_TIMEEX	11
-#endif
-
 #ifndef IPPROTO_ICMP
 #define IPPROTO_ICMP            0x0001  /* ICMP protocol */
 #endif
