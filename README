@@ -1,1 +1,55 @@
-Nothing to read yet
+Issues:
+
+Need to figure out when I need to reverse endianness and when I don't
+FRAGMENTATION
+Have not touched ICMP stuff yet
+	will need to figure out the construction of the correct ICMP header
+	http://en.wikipedia.org/wiki/Internet_Control_Message_Protocol
+Need to figure out how to reconstruct packet buffers (and get the proper lengths)
+Memory Management
+
+Is struct in_addr.s_addr in network or host byte order?
+	inet_pton(), inet_ntop()
+	http://pubs.opengroup.org/onlinepubs/009695399/functions/inet_ntop.html
+	
+	
+	
+	
+	
+	
+PROTOTYPING Pseudocode:
+
+Look up destination in routing table
+if(dest == router interface) /*Figure out by looking through interface linked list*/
+	if(protocol == ICMP)
+		handle_icmp();
+	else
+		send ICMP port unreachable to sourceIP;
+else
+	match dest to interface in routing table
+	update IP header
+	look up dest MAC address in ARP cache
+	struct sr_ethernet_hdr *for_pack = malloc();
+	if(MAC present)
+		for_pack->ether_dhost = MAC;
+	else
+		int i;
+		for(i = 0; i < 5; i++)
+		{
+			if((for_pack->ether_dhost = getMAC()) != NO_REPLY)
+				break;
+		}
+	
+	if(for_pack->ether_dhost = NO_REPLY)
+		send ICMP host unreachable to ip_hdr->source_ip;
+	else {
+		forward packet
+	}
+	
+
+Checksum Reference:
+http://www.faqs.org/rfcs/rfc1071.html
+
+
+			
+	
