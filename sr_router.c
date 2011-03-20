@@ -20,6 +20,8 @@
 #include "sr_rt.h"
 #include "sr_router.h"
 #include "sr_protocol.h"
+#include "icmp.h"
+
 
 /*--------------------------------------------------------------------- 
  * Method: sr_init(void)
@@ -73,49 +75,40 @@ Careful about memory allocation issues with incrementing packet
 ***********************************************************/
     printf("\n*** -> Received packet of length %d \n",len);
     
-    int i;
-    for(i = 0; i < len; i++)
-    {
-    	printf("%x  %d\n", *(packet + i), i);
-    }
+    struct sr_ethernet_hdr *eth = 0;
+    int eth_offset = sizeof(struct sr_ethernet_hdr);
     
-    struct sr_ethernet_hdr *eth = (struct sr_ethernet_hdr *)malloc(sizeof(struct sr_ethernet_hdr));
-    uint8_t *front = packet;
-    for(i = 0; i < ETHER_ADDR_LEN; i++)
+    if(len < eth_offset)
     {
-    	
-    	eth->ether_dhost[i] = *front++;
+    	printf("Error, malformed packet recieved");
     }
-    
-    for(i = 0; i < ETHER_ADDR_LEN; i++)
+    else
     {
-    	
-    	eth->ether_shost[i] = *front++;
-    }
+		eth = (struct sr_ethernet_hdr *)packet;
+		
+	   
+		uint16_t temp = *front++;
+		temp = temp*256 + *front++;
+		eth->ether_type = temp;*/
+		
+		switch(eth->ether_type)
+		{
+			case htons(ETHERTYPE_IP):
+				handle_ip(sr, packet + eth_offset, len - eth_offset, interface);
+				printf("GOT an IP packet");
+				break;
+			case htons(ETHERTYPE_ARP):
+				/*handle_ARP();*/
+				printf("Got an ARP packet");
+				break;
+			default:
+				printf("%x", eth->ether_type);
+		}
+	}
     
-   
-    uint16_t temp = *front++;
-    temp = temp*256 + *front++;
-    eth->ether_type = temp;
-    switch(eth->ether_type)
-    {
-    	case ETHERTYPE_IP:
-    		handle_ip();
-    		printf("GOT an IP packet");
-    		break;
-    	case ETHERTYPE_ARP:
-    		/*handle_ARP();*/
-    		printf("Got an ARP packet");
-    		break;
-    	default:
-    		printf("%x", eth->ether_type);
-    }
-    
-/************************************************
-	TODO: FREE MALLOCED ETHERNET HEADER STRUCT
-************************************************/
 
 }/* end sr_ForwardPacket */
+
 
 struct ip* load_ip_hdr(uint8_t *packet)
 {
@@ -161,7 +154,6 @@ struct ip* load_ip_hdr(uint8_t *packet)
 	}
 	
 	ip_hdr->ip_dst.s_addr = *packet++;
-	int i;
 	for(i = 1; i < 4; i++)
 	{
 		ip_hdr->ip_dst.s_addr = (ip_hdr->ip_dst.s_addr)*256 + *packet++;
@@ -185,13 +177,13 @@ void handle_ip(struct sr_instance *sr, uint8_t *packet, unsigned int len, char *
 		struct sr_if *iface = sr->if_list;
 		while(iface != NULL)
 		{
-			if(iface->ip == ip_hdr->ip_dest.s_addr)
+			if(iface->ip == ip_hdr->ip_dst.s_addr)
 			{
 				found_case = 1;
-				if(ip_hdr->ip_p == IPPROT_ICMP)
-					handle_icmp();
+				if(ip_hdr->ip_p == IPPROTO_ICMP)
+					handle_icmp(sr, packet, len, interface, ip_hdr);
 				else
-					icmp_response(ip_hdr, PORT_UNREACHABLE /*...*/);
+					icmp_response(ip_hdr, ICMPT_DESTUN, ICMPC_PORTUN);
 			}
 			else
 				iface = iface->next;
@@ -205,20 +197,17 @@ void handle_ip(struct sr_instance *sr, uint8_t *packet, unsigned int len, char *
 		if(ip_hdr->ip_ttl < 1)
 		{
 			/*packet expired*/
-			icmp_response(ip_hdr, ICMPT_TIMEEX /*...*/);
+			icmp_response(ip_hdr, ICMPT_TIMEEX, ICMPC_INTRANSIT);
 		}
 		get_routing_if(sr, found, ip_hdr);
-		if(found != NULL)
-		{
-			update_ip_hdr(ip_hdr);
-		}
+		assert(found != NULL);
+		update_ip_hdr(ip_hdr);
 	}
 			
 }
 
 void update_ip_hdr(struct ip *ip_hdr)
 {
-	assert(found);
 	ip_hdr->ip_ttl--;
 	ip_hdr->ip_sum += - 1; /*The change in ip_ttl was -1 so we subtract 1 (see
 							RFC 1071.2.4). Because it was subtraction, there can be no
@@ -226,7 +215,7 @@ void update_ip_hdr(struct ip *ip_hdr)
 }
 
 /*METHOD: Get the correct entry in the routing table*/
-void get_routing_if(struct sr_instance *sr, struct sr_rt *found, struct ip *ih_hdr)
+void get_routing_if(struct sr_instance *sr, struct sr_rt *found, struct ip *ip_hdr)
 {
 	struct sr_rt *current = sr->routing_table;
 	struct in_addr min_mask;
@@ -249,7 +238,6 @@ void get_routing_if(struct sr_instance *sr, struct sr_rt *found, struct ip *ih_h
 		}
 		current = current->next;
 	}
-	return found;
 }
 
 

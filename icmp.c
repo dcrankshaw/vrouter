@@ -11,6 +11,16 @@ ICMP Functionality:
 *
 *-------------------------------------------------------------*/
 
+#include <stdlib.h>
+#include <assert.h>
+#include <stdio.h>
+
+#include "sr_if.h"
+#include "sr_rt.h"
+#include "sr_router.h"
+#include "sr_protocol.h"
+#include "icmp.h"
+
 void handle_icmp(struct sr_instance *sr,
 				uint8_t *packet,
 				unsigned int len,
@@ -35,7 +45,9 @@ void handle_icmp(struct sr_instance *sr,
 	
 	
 	}
+}
 
-
-
+void icmp_response(struct ip *ip_hdr, unsigned int type, unsigned int code)
+{
+	printf("icmp_response() currently unimplemented");
 }

@@ -137,6 +137,14 @@ struct sr_ethernet_hdr
 #define ICMPT_TIMEEX	11
 #endif
 
+#ifndef ICMPC_PORTUN
+#define ICMPC_PORTUN	3
+#endif
+
+#ifndef ICMPC_INTRANSIT
+#define ICMPC_INTRANSIT	0
+#endif
+
 #ifndef IPPROTO_ICMP
 #define IPPROTO_ICMP            0x0001  /* ICMP protocol */
 #endif
@@ -149,8 +157,13 @@ struct sr_ethernet_hdr
 #define ETHERTYPE_ARP           0x0806  /* Addr. resolution protocol */
 #endif
 
+#ifndef ARP_REQUEST
 #define ARP_REQUEST 1
+#endif
+
+#ifndef ARP_REPLY
 #define ARP_REPLY   2
+#endif
 
 struct sr_arphdr 
 {

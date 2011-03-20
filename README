@@ -50,6 +50,15 @@ else
 Checksum Reference:
 http://www.faqs.org/rfcs/rfc1071.html
 
+Questions:
+Is struct in_addr.s_addr in network or host byte order?
+Are there any fields besides those in the IP header that are longer than
+1 byte that we need to call ntoh() on?
+Will the router ever need to defragment packets that it is forwarding?
+	Is defragmentation only for packets whose final destination is one
+	of the router interfaces?
+
+
 
 			
 	
