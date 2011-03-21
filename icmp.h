@@ -8,7 +8,7 @@
 
 /* -- icmp.c --*/
 void handle_icmp(struct sr_instance *, uint8_t *, unsigned int, char *, struct ip *);
-void icmp_response(struct ip *, unsigned int, unsigned int);
+void icmp_response(len, struct ip *, unsigned int, unsigned int);
 
 
 #endif /*definition of ICMP_H*/

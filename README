@@ -1,6 +1,5 @@
 Issues:
 
-Need to figure out when I need to reverse endianness and when I don't
 FRAGMENTATION
 Have not touched ICMP stuff yet
 	will need to figure out the construction of the correct ICMP header
@@ -8,10 +7,11 @@ Have not touched ICMP stuff yet
 Need to figure out how to reconstruct packet buffers (and get the proper lengths)
 Memory Management
 
-Is struct in_addr.s_addr in network or host byte order?
-	inet_pton(), inet_ntop()
-	http://pubs.opengroup.org/onlinepubs/009695399/functions/inet_ntop.html
-	
+
+****Figure out if checksum shortcut will work****
+**** Error checking with malloc (and memcpy?) ****
+**** Free allocated memory ****
+**** make sure all if statements are bracketed (I know not all of the are) ****
 	
 	
 	
@@ -51,13 +51,14 @@ Checksum Reference:
 http://www.faqs.org/rfcs/rfc1071.html
 
 Questions:
-Is struct in_addr.s_addr in network or host byte order?
-Are there any fields besides those in the IP header that are longer than
-1 byte that we need to call ntoh() on?
+
+
 Will the router ever need to defragment packets that it is forwarding?
 	Is defragmentation only for packets whose final destination is one
 	of the router interfaces?
-
+Should we be checking the IP header checksum for each ip packet we receive?
+Do we need to deal with IP options? If so, which ones?
+	specifically traceroute????
 
 
 			

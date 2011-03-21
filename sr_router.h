@@ -66,7 +66,7 @@ int sr_read_from_server(struct sr_instance* );
 /* -- sr_router.c -- */
 void sr_init(struct sr_instance* );
 void sr_handlepacket(struct sr_instance* , uint8_t * , unsigned int , char* );
-struct ip* load_ip_hdr(uint8_t *);
+/*struct ip* load_ip_hdr(uint8_t *);*/
 void handle_ip(struct sr_instance *, uint8_t *, unsigned int, char *);
 void update_ip_hdr(struct ip*);
 void get_routing_if(struct sr_instance *, struct sr_rt *, struct ip *);

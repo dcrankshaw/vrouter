@@ -75,6 +75,8 @@ Careful about memory allocation issues with incrementing packet
 ***********************************************************/
     printf("\n*** -> Received packet of length %d \n",len);
     
+    
+    uint8_t *ret_pack = (uint8_t *)malloc(MAX_PAC_LENGTH);
     struct sr_ethernet_hdr *eth = 0;
     int eth_offset = sizeof(struct sr_ethernet_hdr);
     
@@ -85,10 +87,6 @@ Careful about memory allocation issues with incrementing packet
     else
     {
 		eth = (struct sr_ethernet_hdr *)packet;
-		
-	   
-		uint16_t temp = *front++;
-		temp = temp*256 + *front++;
 		eth->ether_type = temp;*/
 		
 		switch(eth->ether_type)
@@ -105,16 +103,18 @@ Careful about memory allocation issues with incrementing packet
 				printf("%x", eth->ether_type);
 		}
 	}
+	
+	free(ret_pack);
     
 
 }/* end sr_ForwardPacket */
 
 
-struct ip* load_ip_hdr(uint8_t *packet)
+/*struct ip* load_ip_hdr(uint8_t *packet)
 {
 	struct ip *ip_hdr = (struct ip *)malloc(sizeof(struct ip));
 	
-	ip_hdr->ip_v = (*packet)/16; /*assign 4 MSB of 1st byte to version*/
+	ip_hdr->ip_v = (*packet)/16; //assign 4 MSB of 1st byte to version//
 	
 	ip_hdr->ip_hl = *packet++;
 	
@@ -144,8 +144,8 @@ struct ip* load_ip_hdr(uint8_t *packet)
 	ip_hdr->ip_sum = (ip_hdr->ip_sum)*256 + *packet++;
 	ip_hdr->ip_sum = ntohs(ip_hdr->ip_sum);
 	
-	/*Merge four bytes into one in_addr_t integer (really a 32 bit unsigned integer
-	representing an IP address in NETWORK byte order)*/
+	//Merge four bytes into one in_addr_t integer (really a 32 bit unsigned integer
+	representing an IP address in NETWORK byte order)//
 	ip_hdr->ip_src.s_addr = *packet++;
 	int i;
 	for(i = 1; i < 4; i++)
@@ -160,48 +160,59 @@ struct ip* load_ip_hdr(uint8_t *packet)
 	}
 	
 	return ip_hdr;
-}
+}*/
 
 void handle_ip(struct sr_instance *sr, uint8_t *packet, unsigned int len, char *interface)
 {
 	/*Load IP header*/
-	struct ip *ip_hdr = load_ip_hdr(packet);
 	
-	/*End IP header*/
-	
-	
-	int found_case = 0;	/*used to determine which loops to go into*/
-	/*Deals with router as destination*/
-	if(!found_case)
+	int ip_offset = sizeof(struct ip);
+	if(len < ip_offset)
 	{
-		struct sr_if *iface = sr->if_list;
-		while(iface != NULL)
-		{
-			if(iface->ip == ip_hdr->ip_dst.s_addr)
-			{
-				found_case = 1;
-				if(ip_hdr->ip_p == IPPROTO_ICMP)
-					handle_icmp(sr, packet, len, interface, ip_hdr);
-				else
-					icmp_response(ip_hdr, ICMPT_DESTUN, ICMPC_PORTUN);
-			}
-			else
-				iface = iface->next;
-		}
+		printf("malformed IP packet");
+		/*TODO: send an icmp malformed packet message to 
+		the source host from the ethernet header?????*/
 	}
-	
-	/*Deals with forwarding*/
-	if(!found_case)
+	else
 	{
-		struct sr_rt *found = NULL;
-		if(ip_hdr->ip_ttl < 1)
+		struct ip *ip_hdr = (struct ip *)packet;
+		
+		/*End IP header*/
+		
+		
+		int found_case = 0;	/*used to determine which loops to go into*/
+		/*Deals with router as destination*/
+		if(!found_case)
 		{
-			/*packet expired*/
-			icmp_response(ip_hdr, ICMPT_TIMEEX, ICMPC_INTRANSIT);
+			struct sr_if *iface = sr->if_list;
+			while(iface != NULL)
+			{
+				if(iface->ip == ntohl(ip_hdr->ip_dst.s_addr))
+				{
+					found_case = 1;
+					if(ip_hdr->ip_p == IPPROTO_ICMP)
+						handle_icmp(sr, packet + ip_offset, len - ip_offset, interface, ip_hdr);
+					else
+						icmp_response(len - ip_offset, packet, ip_hdr, ICMPT_DESTUN, ICMPC_PORTUN);
+				}
+				else
+					iface = iface->next;
+			}
 		}
-		get_routing_if(sr, found, ip_hdr);
-		assert(found != NULL);
-		update_ip_hdr(ip_hdr);
+		
+		/*Deals with forwarding*/
+		if(!found_case)
+		{
+			struct sr_rt *found = NULL;
+			if(ip_hdr->ip_ttl < 1)
+			{
+				/*packet expired*/
+				icmp_response(len - ip_offset, packet, ip_hdr, ICMPT_TIMEEX, ICMPC_INTRANSIT);
+			}
+			get_routing_if(sr, found, ip_hdr);
+			assert(found != NULL);
+			update_ip_hdr(ip_hdr);
+		}
 	}
 			
 }
@@ -209,9 +220,12 @@ void handle_ip(struct sr_instance *sr, uint8_t *packet, unsigned int len, char *
 void update_ip_hdr(struct ip *ip_hdr)
 {
 	ip_hdr->ip_ttl--;
-	ip_hdr->ip_sum += - 1; /*The change in ip_ttl was -1 so we subtract 1 (see
-							RFC 1071.2.4). Because it was subtraction, there can be no
-							overflow*/
+	uint16_t temp = ntohs(ip_hdr->ip_sum);
+	temp += -1;
+	ip_hdr->ip_sum = htons(temp);
+	
+	/*The change in ip_ttl was -1 so we subtract 1 (see RFC 1071.2.4). Because it was
+	subtraction, there can be no overflow*/
 }
 
 /*METHOD: Get the correct entry in the routing table*/
@@ -224,7 +238,7 @@ void get_routing_if(struct sr_instance *sr, struct sr_rt *found, struct ip *ip_h
 	while(current != NULL)
 	{
 		/*If the bitwise AND of current ip and sought ip is greater than the current mask*/
-		if((current->dest.s_addr & ip_hdr->ip_dst.s_addr) >= current->mask.s_addr)
+		if((current->dest.s_addr & ntohl(ip_hdr->ip_dst.s_addr)) >= current->mask.s_addr)
 		{
 			/*And if this is the closest fitting match so far
 				***To make sure that internally destinations that fit a mask better than 0.0.0.0
