@@ -121,6 +121,33 @@ struct sr_ethernet_hdr
 #define ARPHDR_ETHER    1
 #endif
 
+#ifndef ICMPT_ECHOREPLY
+#define ICMPT_ECHOREPLY	0
+#endif
+
+#ifndef ICMPT_DESTUN
+#define ICMPT_DESTUN	3
+#endif
+
+#ifndef ICMPT_ECHOREQUEST
+#define ICMPT_ECHOREQUEST	8
+#endif
+
+#ifndef ICMPT_TIMEEX
+#define ICMPT_TIMEEX	11
+#endif
+
+#ifndef MAX_PAC_LENGTH
+#define MAC_PAC_LENGTH 	10000			/* Max packet length the router will generate */
+
+#ifndef ICMPC_PORTUN
+#define ICMPC_PORTUN	3
+#endif
+
+#ifndef ICMPC_INTRANSIT
+#define ICMPC_INTRANSIT	0
+#endif
+
 #ifndef IPPROTO_ICMP
 #define IPPROTO_ICMP            0x0001  /* ICMP protocol */
 #endif
@@ -133,8 +160,19 @@ struct sr_ethernet_hdr
 #define ETHERTYPE_ARP           0x0806  /* Addr. resolution protocol */
 #endif
 
+#ifndef ARP_REQUEST
 #define ARP_REQUEST 1
+#endif
+
+#ifndef ARP_REPLY
 #define ARP_REPLY   2
+#endif
+
+#ifndef ICMP_DATA_RES
+#define ICMP_DATA_RES 8			/* chunk of original packet to include in certain
+									ICMP response packets */
+#endif
+
 
 struct sr_arphdr 
 {
@@ -147,6 +185,16 @@ struct sr_arphdr
     uint32_t        ar_sip;             /* sender IP address            */
     unsigned char   ar_tha[ETHER_ADDR_LEN];   /* target hardware address      */
     uint32_t        ar_tip;             /* target IP address            */
+} __attribute__ ((packed)) ;
+
+struct icmp_hdr
+{
+	uint8_t icmp_type;		/* icmp type field */
+	uint8_t icmp_code;		/* icmp code field */
+	uint16_t icmp_sum;		/* icmp header checksum */
+	uint16_t opt1;			/* e.g. identifier */
+	uint16_t opt2;
+
 } __attribute__ ((packed)) ;
 
 

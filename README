@@ -1,1 +1,64 @@
-Nothing to read yet
+
+Issues:
+
+FRAGMENTATION
+Have not touched ICMP stuff yet
+	will need to figure out the construction of the correct ICMP header
+	http://en.wikipedia.org/wiki/Internet_Control_Message_Protocol
+Need to figure out how to reconstruct packet buffers (and get the proper lengths)
+Memory Management
+
+
+****Figure out if checksum shortcut will work****
+**** Error checking with malloc (and memcpy?) ****
+**** Free allocated memory ****
+**** make sure all if statements are bracketed (I know not all of the are) ****
+	
+	
+	
+	
+	
+PROTOTYPING Pseudocode:
+
+Look up destination in routing table
+if(dest == router interface) /*Figure out by looking through interface linked list*/
+	if(protocol == ICMP)
+		handle_icmp();
+	else
+		send ICMP port unreachable to sourceIP;
+else
+	match dest to interface in routing table
+	update IP header
+	look up dest MAC address in ARP cache
+	struct sr_ethernet_hdr *for_pack = malloc();
+	if(MAC present)
+		for_pack->ether_dhost = MAC;
+	else
+		int i;
+		for(i = 0; i < 5; i++)
+		{
+			if((for_pack->ether_dhost = getMAC()) != NO_REPLY)
+				break;
+		}
+	
+	if(for_pack->ether_dhost = NO_REPLY)
+		send ICMP host unreachable to ip_hdr->source_ip;
+	else {
+		forward packet
+	}
+	
+
+Checksum Reference:
+http://www.faqs.org/rfcs/rfc1071.html
+
+Questions:
+
+
+Will the router ever need to defragment packets that it is forwarding?
+	Is defragmentation only for packets whose final destination is one
+	of the router interfaces?
+Should we be checking the IP header checksum for each ip packet we receive?
+Do we need to deal with IP options? If so, which ones?
+	specifically traceroute????
+
+

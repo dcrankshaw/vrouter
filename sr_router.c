@@ -20,6 +20,8 @@
 #include "sr_rt.h"
 #include "sr_router.h"
 #include "sr_protocol.h"
+#include "icmp.h"
+
 
 /*--------------------------------------------------------------------- 
  * Method: sr_init(void)
@@ -73,47 +75,184 @@ Careful about memory allocation issues with incrementing packet
 ***********************************************************/
     printf("\n*** -> Received packet of length %d \n",len);
     
-    int i;
-    for(i = 0; i < len; i++)
-    {
-    	printf("%x  %d\n", *(packet + i), i);
-    }
     
-    struct sr_ethernet_hdr *eth = (struct sr_ethernet_hdr *)malloc(sizeof(struct sr_ethernet_hdr));
-    uint8_t *front = packet;
-    for(i = 0; i < ETHER_ADDR_LEN; i++)
-    {
-    	
-    	eth->ether_dhost[i] = *front++;
-    }
+    uint8_t *ret_pack = (uint8_t *)malloc(MAX_PAC_LENGTH);
+    struct sr_ethernet_hdr *eth = 0;
+    int eth_offset = sizeof(struct sr_ethernet_hdr);
     
-    for(i = 0; i < ETHER_ADDR_LEN; i++)
+    if(len < eth_offset)
     {
-    	
-    	eth->ether_shost[i] = *front++;
+    	printf("Error, malformed packet recieved");
     }
-    
-   
-    uint16_t temp = *front++;
-    temp = temp*256 + *front++;
-    eth->ether_type = temp;
-    switch(eth->ether_type)
+    else
     {
-    	case ETHERTYPE_IP:
-    		/*handle_ip();*/
-    		printf("GOT an IP packet");
-    		break;
-    	case ETHERTYPE_ARP:
-    		/*handle_ARP();*/
-    		printf("Got an ARP packet");
-    		break;
-    	default:
-    		printf("%x", eth->ether_type);
-    }
-    
+		eth = (struct sr_ethernet_hdr *)packet;
+		eth->ether_type = temp;*/
+		
+		switch(eth->ether_type)
+		{
+			case htons(ETHERTYPE_IP):
+				handle_ip(sr, packet + eth_offset, len - eth_offset, interface);
+				printf("GOT an IP packet");
+				break;
+			case htons(ETHERTYPE_ARP):
+				/*handle_ARP();*/
+				printf("Got an ARP packet");
+				break;
+			default:
+				printf("%x", eth->ether_type);
+		}
+	}
+	
+	free(ret_pack);
     
 
 }/* end sr_ForwardPacket */
+
+
+/*struct ip* load_ip_hdr(uint8_t *packet)
+{
+	struct ip *ip_hdr = (struct ip *)malloc(sizeof(struct ip));
+	
+	ip_hdr->ip_v = (*packet)/16; //assign 4 MSB of 1st byte to version//
+	
+	ip_hdr->ip_hl = *packet++;
+	
+	ip_hdr->ip_tos = *packet++;
+	
+	ip_hdr->ip_len = *packet++;
+	ip_hdr->ip_len = (ip_hdr->ip_len)*256 + *packet++;
+	ip_hdr->ip_len = ntohs(ip_hdr->ip_len);
+	
+	ip_hdr->ip_id = *packet++;
+	ip_hdr->ip_id = (ip_hdr->ip_id)*256 + *packet++;
+	ip_hdr->ip_id = ntohs(ip_hdr->ip_id);
+	
+	ip_hdr->ip_id = *packet++;
+	ip_hdr->ip_id = (ip_hdr->ip_id)*256 + *packet++;
+	ip_hdr->ip_id = ntohs(ip_hdr->ip_id);
+	
+	ip_hdr->ip_off = *packet++;
+	ip_hdr->ip_off = (ip_hdr->ip_off)*256 + *packet++;
+	ip_hdr->ip_off = ntohs(ip_hdr->ip_off);
+	
+	ip_hdr->ip_ttl = *packet++;
+	
+	ip_hdr->ip_p = *packet++;
+	
+	ip_hdr->ip_sum = *packet++;
+	ip_hdr->ip_sum = (ip_hdr->ip_sum)*256 + *packet++;
+	ip_hdr->ip_sum = ntohs(ip_hdr->ip_sum);
+	
+	//Merge four bytes into one in_addr_t integer (really a 32 bit unsigned integer
+	representing an IP address in NETWORK byte order)//
+	ip_hdr->ip_src.s_addr = *packet++;
+	int i;
+	for(i = 1; i < 4; i++)
+	{
+		ip_hdr->ip_src.s_addr = (ip_hdr->ip_src.s_addr)*256 + *packet++;
+	}
+	
+	ip_hdr->ip_dst.s_addr = *packet++;
+	for(i = 1; i < 4; i++)
+	{
+		ip_hdr->ip_dst.s_addr = (ip_hdr->ip_dst.s_addr)*256 + *packet++;
+	}
+	
+	return ip_hdr;
+}*/
+
+void handle_ip(struct sr_instance *sr, uint8_t *packet, unsigned int len, char *interface)
+{
+	/*Load IP header*/
+	
+	int ip_offset = sizeof(struct ip);
+	if(len < ip_offset)
+	{
+		printf("malformed IP packet");
+		/*TODO: send an icmp malformed packet message to 
+		the source host from the ethernet header?????*/
+	}
+	else
+	{
+		struct ip *ip_hdr = (struct ip *)packet;
+		
+		/*End IP header*/
+		
+		
+		int found_case = 0;	/*used to determine which loops to go into*/
+		/*Deals with router as destination*/
+		if(!found_case)
+		{
+			struct sr_if *iface = sr->if_list;
+			while(iface != NULL)
+			{
+				if(iface->ip == ntohl(ip_hdr->ip_dst.s_addr))
+				{
+					found_case = 1;
+					if(ip_hdr->ip_p == IPPROTO_ICMP)
+						handle_icmp(sr, packet + ip_offset, len - ip_offset, interface, ip_hdr);
+					else
+						icmp_response(len - ip_offset, packet, ip_hdr, ICMPT_DESTUN, ICMPC_PORTUN);
+				}
+				else
+					iface = iface->next;
+			}
+		}
+		
+		/*Deals with forwarding*/
+		if(!found_case)
+		{
+			struct sr_rt *found = NULL;
+			if(ip_hdr->ip_ttl < 1)
+			{
+				/*packet expired*/
+				icmp_response(len - ip_offset, packet, ip_hdr, ICMPT_TIMEEX, ICMPC_INTRANSIT);
+			}
+			get_routing_if(sr, found, ip_hdr);
+			assert(found != NULL);
+			update_ip_hdr(ip_hdr);
+		}
+	}
+			
+}
+
+void update_ip_hdr(struct ip *ip_hdr)
+{
+	ip_hdr->ip_ttl--;
+	uint16_t temp = ntohs(ip_hdr->ip_sum);
+	temp += -1;
+	ip_hdr->ip_sum = htons(temp);
+	
+	/*The change in ip_ttl was -1 so we subtract 1 (see RFC 1071.2.4). Because it was
+	subtraction, there can be no overflow*/
+}
+
+/*METHOD: Get the correct entry in the routing table*/
+void get_routing_if(struct sr_instance *sr, struct sr_rt *found, struct ip *ip_hdr)
+{
+	struct sr_rt *current = sr->routing_table;
+	struct in_addr min_mask;
+	min_mask.s_addr = 0;
+	/*Iterate through routing table linked list*/
+	while(current != NULL)
+	{
+		/*If the bitwise AND of current ip and sought ip is greater than the current mask*/
+		if((current->dest.s_addr & ntohl(ip_hdr->ip_dst.s_addr)) >= current->mask.s_addr)
+		{
+			/*And if this is the closest fitting match so far
+				***To make sure that internally destinations that fit a mask better than 0.0.0.0
+				get to the right place****/
+			if(min_mask.s_addr <= current->mask.s_addr)
+			{
+				/*update the best fitting mask to the current one, and point found to current*/
+				found = current;
+				min_mask = found->mask;
+			}
+		}
+		current = current->next;
+	}
+}
 
 
 /*--------------------------------------------------------------------- 
