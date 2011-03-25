@@ -15,6 +15,7 @@ ICMP Functionality:
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <arpa/inet.h>
 
 #include "sr_if.h"
 #include "sr_rt.h"
@@ -28,7 +29,7 @@ void handle_icmp(struct sr_instance *sr,
 				char *interface,
 				struct ip *ip_hdr)
 {
-	int icmp_offset = size(struct icmp_hdr);
+	int icmp_offset = sizeof(struct icmp_hdr);
 	if(len < icmp_offset)
 	{
 		printf("improperly formatted icmp packet\n");
@@ -41,7 +42,7 @@ void handle_icmp(struct sr_instance *sr,
 		len -= icmp_offset;
 		if(icmp->icmp_type == ICMPT_ECHOREQUEST)
 		{
-			icmp_response(len, ip_hdr, ICMPT_ECHOREPLY, ICMPT_ECHOREPLY);
+			icmp_response(len, data, ip_hdr, ICMPT_ECHOREPLY, ICMPT_ECHOREPLY);
 			/* the icmp code and type are the same for an echo reply */
 		}
 		else
@@ -55,48 +56,47 @@ void handle_icmp(struct sr_instance *sr,
 /* TODO: packets are built (including IP header), need to figure out what to do with them now
 		I'm worried about memory allocation issues
 		Possible fix is to pass in header to already allocated memory (max packet size maybe)
-		and then return the length of the packet.
+		and then return the length of the packet. */
+		
+		/*
+		   -Change appropriate fields in the IP header */
 
 void icmp_response(unsigned int len, uint8_t *packet, struct ip *ip_hdr, unsigned int type, unsigned int code)
 {
 
 	uint8_t *response = 0;
-	struct icmp_hdr *res_head;
-	response = (uint8_t *)malloc(sizeof(icmp_hdr) + 2*(sizeof(uint16_t)));
-	res_head = (icmp_hdr *)response;
-	res_head->icmp_type = type;
-	res_head->icmp_code = code;
-	res_head->icmp_sum = 0; /* not filled in until checksum is calculate */
+	struct icmp_hdr *res_head = 0;
+	uint8_t *pointer = 0;
+	struct in_addr temp;
 	switch(type)
 	{
 		case ICMPT_ECHOREPLY:
-			response = (uint8_t *)malloc(sizeof(icmp_hdr));
-			res_head = (icmp_hdr *)response;
+			response = (uint8_t *)malloc(sizeof(struct icmp_hdr));
+			res_head = (struct icmp_hdr *)(response + sizeof(struct ip));
 			res_head->icmp_type = type;
 			res_head->icmp_code = code;
 			res_head->icmp_sum = 0; /* not filled in until checksum is calculate */
 			res_head->opt1 = 0;
 			res_head->opt2 = 0;
 			
-			
-			
 			break;
 		
 		case ICMPT_DESTUN:
-			response = (uint8_t *)malloc(sizeof(struct icmp_hdr) + sizeof(struct ip_hdr) +
+			response = (uint8_t *)malloc(sizeof(struct icmp_hdr) + sizeof(struct ip) +
 										ICMP_DATA_RES*sizeof(uint8_t));
-			res_head = (icmp_hdr *)response;
+			res_head = (struct icmp_hdr *)response;
 			res_head->icmp_type = type;
 			res_head->icmp_code = code;
 			res_head->icmp_sum = 0; /* not filled in until checksum is calculated */
 			res_head->opt1 = 0;
 			res_head->opt2 = 0;
-			uint8_t *pointer = response + sizeof(struct icmp_hdr);
-			pointer = ip_hdr;
-			uint16t_temp = ip_hdr->ip_src;
+			pointer = response + sizeof(struct icmp_hdr);
+			memcpy(pointer, ip_hdr, sizeof(struct ip));
+			pointer += sizeof(struct ip);
+			temp = ip_hdr->ip_src;
 			ip_hdr->ip_src = ip_hdr->ip_dst;
 			ip_hdr->ip_dst = temp;
-			pointer += sizeof(struct ip_hdr);
+			pointer += sizeof(struct ip);
 			if(len < ICMP_DATA_RES)
 				memcpy(pointer, packet, len);	
 			else
@@ -105,20 +105,21 @@ void icmp_response(unsigned int len, uint8_t *packet, struct ip *ip_hdr, unsigne
 			break;
 		
 		case ICMPT_TIMEEX:
-			response = (uint8_t *)malloc(sizeof(struct icmp_hdr) + sizeof(struct ip_hdr) +
+			response = (uint8_t *)malloc(sizeof(struct icmp_hdr) + sizeof(struct ip) +
 										ICMP_DATA_RES*sizeof(uint8_t));
-			res_head = (icmp_hdr *)response;
+			res_head = (struct icmp_hdr *)response;
 			res_head->icmp_type = type;
 			res_head->icmp_code = code;
 			res_head->icmp_sum = 0; /* not filled in until checksum is calculated */
 			res_head->opt1 = 0;
 			res_head->opt2 = 0;
-			uint8_t *pointer = response + sizeof(struct icmp_hdr);
-			pointer = ip_hdr;
-			uint16t_temp = ip_hdr->ip_src;
+			pointer = response + sizeof(struct icmp_hdr);
+			memcpy(pointer, ip_hdr, sizeof(struct ip));
+			pointer += sizeof(struct ip);
+			temp = ip_hdr->ip_src;
 			ip_hdr->ip_src = ip_hdr->ip_dst;
 			ip_hdr->ip_dst = temp;
-			pointer += sizeof(struct ip_hdr);
+			pointer += sizeof(struct ip);
 			if(len < ICMP_DATA_RES)
 				memcpy(pointer, packet, len);	
 			else

@@ -87,7 +87,6 @@ Careful about memory allocation issues with incrementing packet
     else
     {
 		eth = (struct sr_ethernet_hdr *)packet;
-		eth->ether_type = temp;*/
 		
 		switch(eth->ether_type)
 		{
