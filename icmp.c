@@ -23,33 +23,25 @@ ICMP Functionality:
 #include "sr_protocol.h"
 #include "icmp.h"
 
-void handle_icmp(struct sr_instance *sr,
-				uint8_t *packet,
-				unsigned int len,
-				char *interface,
-				struct ip *ip_hdr)
+void handle_icmp(struct packet_state *ps, struct ip *ip_hdr)
 {
 	int icmp_offset = sizeof(struct icmp_hdr);
-	if(len < icmp_offset)
+	if(ps->len < icmp_offset)
 	{
 		printf("improperly formatted icmp packet\n");
 	}
 	else
 	{
-	
-		struct icmp_hdr *icmp = (struct icmp_hdr *)packet;
-		uint8_t *data = packet + icmp_offset;
-		len -= icmp_offset;
+		struct icmp_hdr *icmp = (struct icmp_hdr *)ps->packet;
 		if(icmp->icmp_type == ICMPT_ECHOREQUEST)
 		{
-			icmp_response(len, data, ip_hdr, ICMPT_ECHOREPLY, ICMPT_ECHOREPLY);
+			icmp_response(ps, ip_hdr, ICMPT_ECHOREPLY, ICMPT_ECHOREPLY);
 			/* the icmp code and type are the same for an echo reply */
 		}
 		else
 		{
 			printf("router not configured to handle icmp type: %u\n", icmp->icmp_type);
 		}
-	
 	}
 }
 
@@ -61,70 +53,23 @@ void handle_icmp(struct sr_instance *sr,
 		/*
 		   -Change appropriate fields in the IP header */
 
-void icmp_response(unsigned int len, uint8_t *packet, struct ip *ip_hdr, unsigned int type, unsigned int code)
+void icmp_response(struct packet_state *ps, struct ip *ip_hdr, unsigned int type, unsigned int code)
 {
 
-	uint8_t *response = 0;
-	struct icmp_hdr *res_head = 0;
-	uint8_t *pointer = 0;
-	struct in_addr temp;
 	switch(type)
 	{
 		case ICMPT_ECHOREPLY:
-			response = (uint8_t *)malloc(sizeof(struct icmp_hdr));
-			res_head = (struct icmp_hdr *)(response + sizeof(struct ip));
-			res_head->icmp_type = type;
-			res_head->icmp_code = code;
-			res_head->icmp_sum = 0; /* not filled in until checksum is calculate */
-			res_head->opt1 = 0;
-			res_head->opt2 = 0;
-			
+			create_icmp_hdr(ps, type, code);
 			break;
 		
 		case ICMPT_DESTUN:
-			response = (uint8_t *)malloc(sizeof(struct icmp_hdr) + sizeof(struct ip) +
-										ICMP_DATA_RES*sizeof(uint8_t));
-			res_head = (struct icmp_hdr *)response;
-			res_head->icmp_type = type;
-			res_head->icmp_code = code;
-			res_head->icmp_sum = 0; /* not filled in until checksum is calculated */
-			res_head->opt1 = 0;
-			res_head->opt2 = 0;
-			pointer = response + sizeof(struct icmp_hdr);
-			memcpy(pointer, ip_hdr, sizeof(struct ip));
-			pointer += sizeof(struct ip);
-			temp = ip_hdr->ip_src;
-			ip_hdr->ip_src = ip_hdr->ip_dst;
-			ip_hdr->ip_dst = temp;
-			pointer += sizeof(struct ip);
-			if(len < ICMP_DATA_RES)
-				memcpy(pointer, packet, len);	
-			else
-				memcpy(pointer, packet, ICMP_DATA_RES);
-			
+			create_icmp_hdr(ps, type, code);
+			create_icmp_data(ps, ip_hdr);
 			break;
 		
 		case ICMPT_TIMEEX:
-			response = (uint8_t *)malloc(sizeof(struct icmp_hdr) + sizeof(struct ip) +
-										ICMP_DATA_RES*sizeof(uint8_t));
-			res_head = (struct icmp_hdr *)response;
-			res_head->icmp_type = type;
-			res_head->icmp_code = code;
-			res_head->icmp_sum = 0; /* not filled in until checksum is calculated */
-			res_head->opt1 = 0;
-			res_head->opt2 = 0;
-			pointer = response + sizeof(struct icmp_hdr);
-			memcpy(pointer, ip_hdr, sizeof(struct ip));
-			pointer += sizeof(struct ip);
-			temp = ip_hdr->ip_src;
-			ip_hdr->ip_src = ip_hdr->ip_dst;
-			ip_hdr->ip_dst = temp;
-			pointer += sizeof(struct ip);
-			if(len < ICMP_DATA_RES)
-				memcpy(pointer, packet, len);	
-			else
-				memcpy(pointer, packet, ICMP_DATA_RES);
-			
+			create_icmp_hdr(ps, type, code);
+			create_icmp_data(ps, ip_hdr);
 			break;
 		
 		case ICMPT_TRACERT:
@@ -133,7 +78,40 @@ void icmp_response(unsigned int len, uint8_t *packet, struct ip *ip_hdr, unsigne
 		
 		default:
 			printf("ICMP type %d is unimplemented at this time", type);
+			break;
 	}
 	
 	printf("icmp_response() currently unimplemented");
+}
+
+void create_icmp_data(struct packet_state *ps, struct ip* ip_hdr)
+{
+	memcpy(ps->response, ip_hdr, sizeof(struct ip));
+	ps->res_len += sizeof(struct ip);
+	ps->response += sizeof(struct ip);
+	if(ps->len < ICMP_DATA_RES)
+	{
+		memcpy(ps->response, ps->packet, ps->len);
+		ps->res_len += ps->len;
+		ps->response += ps->len;
+	}	
+	else
+	{
+		memcpy(ps->response, ps->packet, ICMP_DATA_RES);
+		ps->res_len += ICMP_DATA_RES;
+		ps->response += ICMP_DATA_RES;
+	}
+}
+
+void create_icmp_hdr(struct packet_state *ps, unsigned int type, unsigned int code)
+{
+	struct icmp_hdr *res_head = (struct icmp_hdr *)ps->response;
+	res_head->icmp_type = type;
+	res_head->icmp_code = code;
+	res_head->icmp_sum = 0; /* not filled in until checksum is calculate */
+	res_head->opt1 = 0;
+	res_head->opt2 = 0;
+	ps->res_len += sizeof(struct icmp_hdr);
+	ps->response += sizeof(struct icmp_hdr);
+	/* comp_checksum(); */
 }

@@ -54,6 +54,25 @@ struct sr_instance
     FILE* logfile;
 };
 
+/* -----------------------------------------------------------------------
+* struct packet_state
+*
+* Encapsulation of the state information for all methods used to generate
+* and forward a packet received by sr_handlepacket().
+* ----------------------------------------------------------------------- */
+struct packet_state
+{
+	struct sr_instance *sr; /* the instance */
+	uint8_t *packet;		/* the remnants of the original packet as it is stripped */
+	unsigned int len;		/* the length of the original packet (decreased as lower layer headers
+							   get stripped away). This length ensures no unallocated memory
+							   gets accessed */
+	char *interface;		/* interface at which the packet was received */
+	uint8_t *response;		/* the response packet (ethernet header included) */
+	unsigned int res_len;	/* the length of the response packet */
+};
+
+
 /* -- sr_main.c -- */
 int sr_verify_routing_table(struct sr_instance* sr);
 
@@ -65,10 +84,11 @@ int sr_read_from_server(struct sr_instance* );
 /* -- sr_router.c -- */
 void sr_init(struct sr_instance* );
 void sr_handlepacket(struct sr_instance* , uint8_t * , unsigned int , char* );
-/*struct ip* load_ip_hdr(uint8_t *);*/
-void handle_ip(struct sr_instance *, uint8_t *, unsigned int, char *);
+void handle_ip(struct packet_state *);
 void update_ip_hdr(struct ip*);
 void get_routing_if(struct sr_instance *, struct sr_rt *, struct ip *);
+void leave_hdr_room(struct packet_state *, int);
+int create_eth_hdr(uint8_t *, struct packet_state *, char *);
 
 
 

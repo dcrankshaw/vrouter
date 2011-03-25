@@ -1,3 +1,9 @@
+DEBUGGING TOOLS:
+Splint
+Valgrind
+GDB
+
+
 
 Issues:
 
@@ -13,6 +19,9 @@ Memory Management
 **** Error checking with malloc (and memcpy?) ****
 **** Free allocated memory ****
 **** make sure all if statements are bracketed (I know not all of the are) ****
+**** Lengths are currently unsigned ints, that needs to change or we need
+	 make sure that all subtractions will still leave us with len > 0 ****
+**** Have all functions return an int (for error checking) ****
 	
 	
 	
