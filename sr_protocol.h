@@ -143,8 +143,12 @@ struct sr_ethernet_hdr
 #define ICMPT_TIMEEX	11
 #endif
 
+#ifndef ICMPT_TRACERT
+#define ICMPT_TRACERT	30
+#endif
+
 #ifndef MAX_PAC_LENGTH
-#define MAC_PAC_LENGTH 	10000			/* Max packet length the router will generate */
+#define MAX_PAC_LENGTH  10000        /* Max packet length the router will generate */
 #endif
 
 #ifndef ICMPC_PORTUN

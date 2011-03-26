@@ -75,8 +75,14 @@ Careful about memory allocation issues with incrementing packet
 ***********************************************************/
     printf("\n*** -> Received packet of length %d \n",len);
     
-    
-    uint8_t *ret_pack = (uint8_t *)malloc(MAX_PAC_LENGTH);
+	struct packet_state current;
+	current.sr = sr;
+	current.packet = packet;
+	current.len = len;
+	current.interface = interface;
+	current.response = (uint8_t *)malloc(MAX_PAC_LENGTH);
+	uint8_t *head = current.response; /*keep a pointer to the head of allocated memory */
+	current.res_len = MAX_PAC_LENGTH;
     struct sr_ethernet_hdr *eth = 0;
     int eth_offset = sizeof(struct sr_ethernet_hdr);
     
@@ -87,12 +93,12 @@ Careful about memory allocation issues with incrementing packet
     else
     {
 		eth = (struct sr_ethernet_hdr *)packet;
-		eth->ether_type = temp;*/
 		
 		switch(eth->ether_type)
 		{
 			case htons(ETHERTYPE_IP):
-				handle_ip(sr, packet + eth_offset, len - eth_offset, interface);
+				leave_hdr_room(&current, eth_offset);
+				handle_ip(&current);
 				printf("GOT an IP packet");
 				break;
 			case htons(ETHERTYPE_ARP):
@@ -104,70 +110,30 @@ Careful about memory allocation issues with incrementing packet
 		}
 	}
 	
-	free(ret_pack);
+	char *out_iface;
+	
+	if(create_eth_hdr(head, &current, out_iface) > 0)
+	{
+		sr_send_packet(sr, head, current.res_len, out_iface);
+	}
+	
+	free(head);
     
 
 }/* end sr_ForwardPacket */
 
-
-/*struct ip* load_ip_hdr(uint8_t *packet)
+int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, char *iface)
 {
-	struct ip *ip_hdr = (struct ip *)malloc(sizeof(struct ip));
-	
-	ip_hdr->ip_v = (*packet)/16; //assign 4 MSB of 1st byte to version//
-	
-	ip_hdr->ip_hl = *packet++;
-	
-	ip_hdr->ip_tos = *packet++;
-	
-	ip_hdr->ip_len = *packet++;
-	ip_hdr->ip_len = (ip_hdr->ip_len)*256 + *packet++;
-	ip_hdr->ip_len = ntohs(ip_hdr->ip_len);
-	
-	ip_hdr->ip_id = *packet++;
-	ip_hdr->ip_id = (ip_hdr->ip_id)*256 + *packet++;
-	ip_hdr->ip_id = ntohs(ip_hdr->ip_id);
-	
-	ip_hdr->ip_id = *packet++;
-	ip_hdr->ip_id = (ip_hdr->ip_id)*256 + *packet++;
-	ip_hdr->ip_id = ntohs(ip_hdr->ip_id);
-	
-	ip_hdr->ip_off = *packet++;
-	ip_hdr->ip_off = (ip_hdr->ip_off)*256 + *packet++;
-	ip_hdr->ip_off = ntohs(ip_hdr->ip_off);
-	
-	ip_hdr->ip_ttl = *packet++;
-	
-	ip_hdr->ip_p = *packet++;
-	
-	ip_hdr->ip_sum = *packet++;
-	ip_hdr->ip_sum = (ip_hdr->ip_sum)*256 + *packet++;
-	ip_hdr->ip_sum = ntohs(ip_hdr->ip_sum);
-	
-	//Merge four bytes into one in_addr_t integer (really a 32 bit unsigned integer
-	representing an IP address in NETWORK byte order)//
-	ip_hdr->ip_src.s_addr = *packet++;
-	int i;
-	for(i = 1; i < 4; i++)
-	{
-		ip_hdr->ip_src.s_addr = (ip_hdr->ip_src.s_addr)*256 + *packet++;
-	}
-	
-	ip_hdr->ip_dst.s_addr = *packet++;
-	for(i = 1; i < 4; i++)
-	{
-		ip_hdr->ip_dst.s_addr = (ip_hdr->ip_dst.s_addr)*256 + *packet++;
-	}
-	
-	return ip_hdr;
-}*/
+	printf("Ethernet header creation unimplemented at this time");
+	return -1;
 
-void handle_ip(struct sr_instance *sr, uint8_t *packet, unsigned int len, char *interface)
+}
+
+void handle_ip(struct packet_state *ps)
 {
 	/*Load IP header*/
 	
-	int ip_offset = sizeof(struct ip);
-	if(len < ip_offset)
+	if(ps->len < sizeof(struct ip))
 	{
 		printf("malformed IP packet");
 		/*TODO: send an icmp malformed packet message to 
@@ -175,28 +141,53 @@ void handle_ip(struct sr_instance *sr, uint8_t *packet, unsigned int len, char *
 	}
 	else
 	{
-		struct ip *ip_hdr = (struct ip *)packet;
+		struct ip *ip_hdr = (struct ip *)ps->packet;
+		/* indicates IP header has options, which we don't care about */
+		if(ip_hdr->ip_len > sizeof(struct ip))
+		{
+			ps->packet = ps->packet + (ip_hdr->ip_len - sizeof(struct ip));
+		}
+		int ip_offset = sizeof(struct ip);
 		
-		/*End IP header*/
 		
 		
 		int found_case = 0;	/*used to determine which loops to go into*/
 		/*Deals with router as destination*/
 		if(!found_case)
 		{
-			struct sr_if *iface = sr->if_list;
+			struct sr_if *iface = ps->sr->if_list;
 			while(iface != NULL)
 			{
+				/* TODO: This will need rigorous testing */
 				if(iface->ip == ntohl(ip_hdr->ip_dst.s_addr))
 				{
+					printf("reached sr_router.c, print statement #1");
 					found_case = 1;
+					uint8_t *iph_start = ps->response; /* mark where the ip header should go */
+					leave_hdr_room(ps, ip_offset);
 					if(ip_hdr->ip_p == IPPROTO_ICMP)
-						handle_icmp(sr, packet + ip_offset, len - ip_offset, interface, ip_hdr);
+					{
+						handle_icmp(ps, ip_hdr);
+						/* TODO: Reconfigure IP header */
+					}
 					else
-						icmp_response(len - ip_offset, packet, ip_hdr, ICMPT_DESTUN, ICMPC_PORTUN);
+					{
+						icmp_response(ps, ip_hdr, ICMPT_DESTUN, ICMPC_PORTUN);
+					}
+					/* TODO: create the IP header */
+					ip_hdr->ip_len = htons(ps->response - iph_start);
+					ip_hdr->ip_ttl = 64;
+					ip_hdr->ip_p = IPPROTO_ICMP;
+					struct in_addr temp = ip_hdr->ip_src;
+					ip_hdr->ip_src = ip_hdr->ip_dst;
+					ip_hdr->ip_dst = temp;
+					/*checksum();*/
+					break;
 				}
 				else
+				{
 					iface = iface->next;
+				}
 			}
 		}
 		
@@ -207,14 +198,25 @@ void handle_ip(struct sr_instance *sr, uint8_t *packet, unsigned int len, char *
 			if(ip_hdr->ip_ttl < 1)
 			{
 				/*packet expired*/
-				icmp_response(len - ip_offset, packet, ip_hdr, ICMPT_TIMEEX, ICMPC_INTRANSIT);
+				icmp_response(ps, ip_hdr, ICMPT_TIMEEX, ICMPC_INTRANSIT);
 			}
-			get_routing_if(sr, found, ip_hdr);
-			assert(found != NULL);
-			update_ip_hdr(ip_hdr);
+			else /* FORWARD */
+			{
+				get_routing_if(ps->sr, found, ip_hdr);
+				assert(found != NULL);
+				update_ip_hdr(ip_hdr);
+			}
 		}
 	}
 			
+}
+
+void leave_hdr_room(struct packet_state *ps, int hdr_size)
+{
+	ps->packet += hdr_size;
+	ps->len -= hdr_size;
+	ps->response += hdr_size;
+	ps->res_len += hdr_size;
 }
 
 void update_ip_hdr(struct ip *ip_hdr)
