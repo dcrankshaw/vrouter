@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <unistd.h>
 
 
 #include "sr_if.h"
@@ -110,12 +111,14 @@ Careful about memory allocation issues with incrementing packet
 		}
 	}
 	
-	char *out_iface;
+	
+	char *out_iface = (char *) malloc(IF_LEN + 1); /* plus 1 for null termination */
 	
 	if(create_eth_hdr(head, &current, out_iface) > 0)
 	{
 		sr_send_packet(sr, head, current.res_len, out_iface);
 	}
+	free(out_iface);
 	
 	free(head);
     
@@ -124,6 +127,14 @@ Careful about memory allocation issues with incrementing packet
 
 int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, char *iface)
 {
+	
+	
+	/*check ARP cache to see if the MAC address for the outgoing IP address is there*/
+	/* if not present, sleep(5), check again. Repeat 5 times, then send ICMP
+		host unreachable message */
+		
+	/* This method must also figure out the interface to send the packet out of */
+	
 	printf("Ethernet header creation unimplemented at this time");
 	return -1;
 

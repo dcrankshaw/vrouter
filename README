@@ -3,6 +3,9 @@ Splint
 Valgrind
 GDB
 
+*Add a cache entry to struct sr_instance
+	initialise it to 0 in main.c in sr_init_instance
+
 
 
 Issues:
