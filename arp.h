@@ -10,7 +10,7 @@
 #include "sr_protocol.h"
 
 void handle_arp(struct packet_state*);
-
+void got_Request(struct packet_state*, struct sr_arphdr *);
 
 
 

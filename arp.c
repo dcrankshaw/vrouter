@@ -29,10 +29,11 @@ void handle_ARP(struct packet_state * ps)
       	switch (ntohs(arp->ar_op))
 	{
 	case (ARP_REQUEST):
-	  printf("Got an ARP Request.");
+	  printf("Got an ARP Request.\n");
+	  got_Request(ps, arp);
 	  break;
 	case (ARP_REPLY):
-	  printf("Got an ARP Reply.");
+	  printf("Got an ARP Reply.\n");
 	  break;
 	default:
 	  printf("ARP: Not Request nor Reply\n");
@@ -41,6 +42,26 @@ void handle_ARP(struct packet_state * ps)
 	}
 	
     }
-
 }
+
+void got_Request(struct packet_state * ps, struct sr_arphdr * arp_hdr)
+{
+	uint32_t targetIP=ntohl(arp_hdr->ar_tip);
+	struct sr_if * iface=ps->sr->if_list;
+	while(iface!=NULL)
+	{
+			sr_print_if(iface);
+		if(htonl(iface->ip)==targetIP)
+		{
+			printf("IP matches interface: %s\n", iface->name);
+			break;
+		}
+		else
+		{
+			iface=iface->next;
+		}
+	}
+	printf("Didn't find matching IP Address for interface.\n");
+}
+
 
