@@ -93,9 +93,9 @@ Careful about memory allocation issues with incrementing packet
     else
     {
 		eth = (struct sr_ethernet_hdr *)packet;
+		leave_hdr_room(&current, eth_offset);
 		switch(ntohs(eth->ether_type))
 		{
-			leave_hdr_room(&current, eth_offset);
 			case (ETHERTYPE_IP):
 				handle_ip(&current);
 				printf("GOT an IP packet");

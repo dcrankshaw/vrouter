@@ -25,8 +25,8 @@ void handle_ARP(struct packet_state * ps)
     }
   else
     {
-      arp=(struct sr_arphdr *)ps->packet;
-      switch (arp->ar_op)
+      	arp=(struct sr_arphdr *)(ps->packet);
+      	switch (ntohs(arp->ar_op))
 	{
 	case (ARP_REQUEST):
 	  printf("Got an ARP Request.");
@@ -35,8 +35,11 @@ void handle_ARP(struct packet_state * ps)
 	  printf("Got an ARP Reply.");
 	  break;
 	default:
-	  printf("ARP: Not Request nor Reply");
+	  printf("ARP: Not Request nor Reply\n");
+	  printf("%hu", arp->ar_op);
+	  
 	}
+	
     }
 
 }
