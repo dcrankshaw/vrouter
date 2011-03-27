@@ -23,7 +23,7 @@ void handle_arp(struct packet_state*);
 void got_Request(struct packet_state*, struct sr_arphdr *);
 void add_cache_entry(struct packet_state*, uint32_t, const unsigned char*);
 void print_cache_entry(struct arp_cache_entry*);
-
+void print_cache(struct sr_instance*);
 
 #endif
 

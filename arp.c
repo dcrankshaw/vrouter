@@ -91,10 +91,42 @@ assert(ps);
     }
     else
     {
-    
-    
+    /*DO WE WANT TO CLEAN OUT INVALID ENTRIES NOW TOO 
+    OR ONLY WHEN SEARCHING FOR AN ENTRY??*/
+    cache_walker = ps->sr->arp_cache;
+    while(cache_walker->next)
+    {
+    	cache_walker=cache_walker->next;
+    	//CHECK IF PAST TIME INVALID AND DELETE IF INALID??
+    }
+    cache_walker->next=(struct arp_cache_entry*)malloc(sizeof(struct arp_cache_entry));
+    assert(cache_walker->next);
+    cache_walker=cache_walker->next;
+    cache_walker->ip_add=ip;
+    memcpy(cache_walker->mac, mac,ETHER_ADDR_LEN);
+   cache_walker->timenotvalid=time(NULL) +20;	/* Each cache entry is valid for 20 seconds */
+   cache_walker->next=0;
+    print_cache(ps->sr);
     }
 
+}
+
+void print_cache(struct sr_instance* sr)
+{
+	printf("---ARP CACHE---\n");
+	struct arp_cache_entry* cache_walker=0;
+	if(sr->arp_cache==0)
+	{
+		printf(" ARP Cache is Empty.\n");
+		return;
+	}
+	cache_walker=sr->arp_cache;
+	print_cache_entry(cache_walker);
+	while(cache_walker->next)
+	{
+		cache_walker=cache_walker->next;
+		print_cache_entry(cache_walker);
+	}
 }
 
 void print_cache_entry(struct arp_cache_entry * ent)
