@@ -87,19 +87,19 @@ void icmp_response(struct packet_state *ps, struct ip *ip_hdr, unsigned int type
 
 void create_icmp_data(struct packet_state *ps, struct ip* ip_hdr)
 {
-	if(memcpy(ps->response, ip_hdr, sizeof(struct ip))) == 0)
+	if(memcpy(ps->response, ip_hdr, sizeof(struct ip)) == 0)
 	{
 		/*ERROR CHECKING*/
-		break;
+		printf("error");
 	}
 	ps->res_len += sizeof(struct ip);
 	ps->response += sizeof(struct ip);
 	if(ps->len < ICMP_DATA_RES)
 	{
-		if(memcpy(ps->response, ps->packet, ps->len)) == 0)
+		if(memcpy(ps->response, ps->packet, ps->len) == 0)
 		{
 			/*ERROR CHECKING*/
-			break;
+			printf("error");
 		}
 		ps->res_len += ps->len;
 		ps->response += ps->len;
@@ -108,8 +108,7 @@ void create_icmp_data(struct packet_state *ps, struct ip* ip_hdr)
 	{
 		if(memcpy(ps->response, ps->packet, ICMP_DATA_RES))
 		{
-			/*ERROR CHECKING*/
-			break;
+			printf("error");
 		}
 		ps->res_len += ICMP_DATA_RES;
 		ps->response += ICMP_DATA_RES;
