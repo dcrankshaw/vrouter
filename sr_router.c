@@ -93,15 +93,14 @@ Careful about memory allocation issues with incrementing packet
     else
     {
 		eth = (struct sr_ethernet_hdr *)packet;
-		
-		switch(eth->ether_type)
+		switch(ntohs(eth->ether_type))
 		{
-			case htons(ETHERTYPE_IP):
-				leave_hdr_room(&current, eth_offset);
+			leave_hdr_room(&current, eth_offset);
+			case (ETHERTYPE_IP):
 				handle_ip(&current);
 				printf("GOT an IP packet");
 				break;
-			case htons(ETHERTYPE_ARP):
+			case (ETHERTYPE_ARP):
 				/*handle_ARP();*/
 				printf("Got an ARP packet");
 				break;
