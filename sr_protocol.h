@@ -179,6 +179,10 @@ struct sr_ethernet_hdr
 #define ARP_REPLY   2
 #endif
 
+#ifndef	IF_LEN
+#define IF_LEN	4		/* All interface names are 4 characters long (e.g. "eth0") */
+#endif
+
 #ifndef ICMP_DATA_RES
 #define ICMP_DATA_RES 8			/* chunk of original packet to include in certain
 									ICMP response packets */

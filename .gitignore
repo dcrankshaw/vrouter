@@ -2,3 +2,5 @@
 *.o
 sr
 packetlog
+test.c
+.DS_Store

@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <unistd.h>
 
 
 #include "sr_if.h"
@@ -31,10 +32,26 @@
  * 
  *---------------------------------------------------------------------*/
 
+struct packet_buffer *queue;
+struct arp_cache *cache;
+struct flow_control *flow_tbl;
+
 void sr_init(struct sr_instance* sr) 
 {
     /* REQUIRES */
     assert(sr);
+	
+	/* #########################################
+	* In here initilize the packet buffer (a linked list of some sort(?)
+	* that contains some piece of timeout information), the flow control
+	* table, and the arp cache
+	*
+	* ######################################### */
+
+	
+	queue = NULL;
+	cache = NULL;
+	flow_tbl = NULL;
 
     /* Add initialization code here! */
 
@@ -79,6 +96,7 @@ Careful about memory allocation issues with incrementing packet
 	current.sr = sr;
 	current.packet = packet;
 	current.len = len;
+	current.rt_entry = 0;
 	current.interface = interface;
 	current.response = (uint8_t *)malloc(MAX_PAC_LENGTH);
 	uint8_t *head = current.response; /*keep a pointer to the head of allocated memory */
@@ -109,12 +127,14 @@ Careful about memory allocation issues with incrementing packet
 		}
 	}
 	
-	char *out_iface;
+	
+	char *out_iface = (char *) malloc(IF_LEN + 1); /* plus 1 for null termination */
 	
 	if(create_eth_hdr(head, &current, out_iface) > 0)
 	{
 		sr_send_packet(sr, head, current.res_len, out_iface);
 	}
+	free(out_iface);
 	
 	free(head);
     
@@ -123,6 +143,14 @@ Careful about memory allocation issues with incrementing packet
 
 int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, char *iface)
 {
+	
+	
+	/*check ARP cache to see if the MAC address for the outgoing IP address is there*/
+	/* if not present, sleep(5), check again. Repeat 5 times, then send ICMP
+		host unreachable message */
+		
+	/* This method must also figure out the interface to send the packet out of */
+	
 	printf("Ethernet header creation unimplemented at this time");
 	return -1;
 
@@ -147,7 +175,6 @@ void handle_ip(struct packet_state *ps)
 			ps->packet = ps->packet + (ip_hdr->ip_len - sizeof(struct ip));
 		}
 		int ip_offset = sizeof(struct ip);
-		
 		
 		
 		int found_case = 0;	/*used to determine which loops to go into*/
@@ -175,7 +202,7 @@ void handle_ip(struct packet_state *ps)
 					}
 					/* TODO: create the IP header */
 					ip_hdr->ip_len = htons(ps->response - iph_start);
-					ip_hdr->ip_ttl = 64;
+					ip_hdr->ip_ttl = INIT_TTL;
 					ip_hdr->ip_p = IPPROTO_ICMP;
 					struct in_addr temp = ip_hdr->ip_src;
 					ip_hdr->ip_src = ip_hdr->ip_dst;
@@ -193,7 +220,6 @@ void handle_ip(struct packet_state *ps)
 		/*Deals with forwarding*/
 		if(!found_case)
 		{
-			struct sr_rt *found = NULL;
 			if(ip_hdr->ip_ttl < 1)
 			{
 				/*packet expired*/
@@ -201,11 +227,12 @@ void handle_ip(struct packet_state *ps)
 			}
 			else /* FORWARD */
 			{
-				get_routing_if(ps->sr, found, ip_hdr);
-				assert(found != NULL);
 				update_ip_hdr(ip_hdr);
 			}
 		}
+		struct in_addr ipdst_host_order;
+		ipdst_host_order.s_addr = ntohl(ip_hdr->ip_dst.s_addr);
+		get_routing_if(ps, ipdst_host_order);
 	}
 			
 }
@@ -230,16 +257,16 @@ void update_ip_hdr(struct ip *ip_hdr)
 }
 
 /*METHOD: Get the correct entry in the routing table*/
-void get_routing_if(struct sr_instance *sr, struct sr_rt *found, struct ip *ip_hdr)
+void get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
 {
-	struct sr_rt *current = sr->routing_table;
+	struct sr_rt *current = ps->sr->routing_table;
 	struct in_addr min_mask;
-	min_mask.s_addr = 0;
+	min_mask.s_addr = -1;
 	/*Iterate through routing table linked list*/
 	while(current != NULL)
 	{
 		/*If the bitwise AND of current ip and sought ip is greater than the current mask*/
-		if((current->dest.s_addr & ntohl(ip_hdr->ip_dst.s_addr)) >= current->mask.s_addr)
+		if((current->mask.s_addr & ip_dst.s_addr) == current->dest.s_addr)
 		{
 			/*And if this is the closest fitting match so far
 				***To make sure that internally destinations that fit a mask better than 0.0.0.0
@@ -247,8 +274,8 @@ void get_routing_if(struct sr_instance *sr, struct sr_rt *found, struct ip *ip_h
 			if(min_mask.s_addr <= current->mask.s_addr)
 			{
 				/*update the best fitting mask to the current one, and point found to current*/
-				found = current;
-				min_mask = found->mask;
+				ps->rt_entry = current;
+				min_mask = ps->rt_entry->mask;
 			}
 		}
 		current = current->next;

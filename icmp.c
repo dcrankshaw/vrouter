@@ -84,6 +84,7 @@ void icmp_response(struct packet_state *ps, struct ip *ip_hdr, unsigned int type
 	printf("icmp_response() currently unimplemented");
 }
 
+
 void create_icmp_data(struct packet_state *ps, struct ip* ip_hdr)
 {
 	memcpy(ps->response, ip_hdr, sizeof(struct ip));
@@ -102,6 +103,7 @@ void create_icmp_data(struct packet_state *ps, struct ip* ip_hdr)
 		ps->response += ICMP_DATA_RES;
 	}
 }
+
 
 void create_icmp_hdr(struct packet_state *ps, unsigned int type, unsigned int code)
 {
