@@ -127,12 +127,12 @@ Careful about memory allocation issues with incrementing packet
 				printf("GOT an IP packet");
 				break;
 			case htons(ETHERTYPE_ARP):
-				struct arp_cache_entry *entry = handle_ARP(&current);
+				/*struct arp_cache_entry *entry = handle_ARP(&current);
 				if(entry != NULL)
 				{
-					/*then this was a response*/
 					
-				}
+					
+				}*/
 				printf("Got an ARP packet");
 				break;
 			default:
@@ -195,6 +195,7 @@ void handle_ip(struct packet_state *ps)
 		int ip_offset = sizeof(struct ip);
 		
 		
+		/*TODO: make sure interface matching incoming interface ???*/
 		int found_case = 0;	/*used to determine which loops to go into*/
 		/*Deals with router as destination*/
 		if(!found_case)
@@ -238,6 +239,8 @@ void handle_ip(struct packet_state *ps)
 		/*Deals with forwarding*/
 		if(!found_case)
 		{
+			/*check if interface == eth0*/
+			
 			if(ip_hdr->ip_ttl < 1)
 			{
 				/*packet expired*/
