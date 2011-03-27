@@ -8,9 +8,6 @@ Issues:
 **** Figure out if checksum shortcut will work****
 **** Create all other checksums ****
 **** Error checking with malloc (and memcpy?) ****
-**** Free allocated memory ****
-**** Lengths are currently unsigned ints, that needs to change or we need
-	 make sure that all subtractions will still leave us with len > 0 ****
 **** Have all functions return an int (for error checking) ****
 **** Reverse back to network order when reconstructing packets ****
 **** Figure out when to resend ARP requests for packets in queue ****	
@@ -19,5 +16,10 @@ Issues:
 Checksum Reference:
 http://www.faqs.org/rfcs/rfc1071.html
 
-Questions:
+
+Notes:
+When adding a new packet to the buffer or a new entry to the ARP cache, it should look similar
+to the process used to add a new entry to the routing table in sr_load_rt() (sr_rt.c).
+
+
 
