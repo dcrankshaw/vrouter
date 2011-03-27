@@ -21,7 +21,7 @@
 #include "sr_router.h"
 #include "sr_protocol.h"
 #include "icmp.h"
-
+#include "arp.h"
 
 /*--------------------------------------------------------------------- 
  * Method: sr_init(void)
@@ -101,7 +101,7 @@ Careful about memory allocation issues with incrementing packet
 				printf("GOT an IP packet");
 				break;
 			case (ETHERTYPE_ARP):
-				/*handle_ARP();*/
+				handle_ARP(&current);
 				printf("Got an ARP packet");
 				break;
 			default:
