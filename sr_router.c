@@ -83,6 +83,11 @@ Careful about memory allocation issues with incrementing packet
 	current.len = len;
 	current.interface = interface;
 	current.response = (uint8_t *)malloc(MAX_PAC_LENGTH);
+	if(current.response == NULL)
+	{
+		printf("Out of memory");
+		
+	}
 	uint8_t *head = current.response; /*keep a pointer to the head of allocated memory */
 	current.res_len = MAX_PAC_LENGTH;
     struct sr_ethernet_hdr *eth = 0;
@@ -102,6 +107,7 @@ Careful about memory allocation issues with incrementing packet
 				handle_ip(&current);
 				printf("GOT an IP packet");
 				break;
+
 			case (ETHERTYPE_ARP):
 				handle_ARP(&current);
 				printf("Got an ARP packet");
@@ -125,11 +131,10 @@ Careful about memory allocation issues with incrementing packet
 
 int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, char *iface)
 {
+
 	printf("Ethernet header creation unimplemented at this time");
 	return -1;
-
 }
-
 void handle_ip(struct packet_state *ps)
 {
 	/*Load IP header*/
@@ -146,7 +151,8 @@ void handle_ip(struct packet_state *ps)
 		/* indicates IP header has options, which we don't care about */
 		if(ip_hdr->ip_len > sizeof(struct ip))
 		{
-			ps->packet = ps->packet + (ip_hdr->ip_len - sizeof(struct ip));
+			/*ps->packet = ps->packet + (ip_hdr->ip_len - sizeof(struct ip));*/
+			printf("IP packet has options and has been dropped\n");
 		}
 		int ip_offset = sizeof(struct ip);
 		
