@@ -21,5 +21,11 @@ Notes:
 When adding a new packet to the buffer or a new entry to the ARP cache, it should look similar
 to the process used to add a new entry to the routing table in sr_load_rt() (sr_rt.c).
 
+Adam:
+*see pseudo code
+
+Maddie:
+
+
 
 

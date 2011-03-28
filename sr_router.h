@@ -122,11 +122,15 @@ int sr_read_from_server(struct sr_instance* );
 /* -- sr_router.c -- */
 void sr_init(struct sr_instance* );
 void sr_handlepacket(struct sr_instance* , uint8_t * , unsigned int , char* );
-void handle_ip(struct packet_state *);
+int handle_ip(struct packet_state *);
 void update_ip_hdr(struct ip*);
 void get_routing_if(struct packet_state *, struct in_addr);
 void leave_hdr_room(struct packet_state *, int);
 int create_eth_hdr(uint8_t *, struct packet_state *, char *);
+
+/* firewall.c */
+int ft_contains(struct sr_instance *, uint32_t , uint32_t, uint8_t, uint8_t, uint8_t);
+int sr_add_ft_entry(struct sr_instance *, uint32_t , uint32_t, uint8_t, uint8_t, uint8_t);
 
 
 

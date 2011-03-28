@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
+#include <string.h>
 
 
 #include "sr_if.h"
@@ -173,7 +174,7 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, char *iface)
 
 }
 
-void handle_ip(struct packet_state *ps)
+int handle_ip(struct packet_state *ps)
 {
 	/*Load IP header*/
 	
@@ -194,6 +195,13 @@ void handle_ip(struct packet_state *ps)
 		}
 		int ip_offset = sizeof(struct ip);
 		
+		char *if0 = "eth0";
+		char *if1 = "eth1";
+		char *if2 = "eth2";
+		
+		struct in_addr ipdst_host_order;
+		ipdst_host_order.s_addr = ntohl(ip_hdr->ip_dst.s_addr);
+		get_routing_if(ps, ipdst_host_order);
 		
 		/*TODO: make sure interface matching incoming interface ???*/
 		int found_case = 0;	/*used to determine which loops to go into*/
@@ -207,6 +215,13 @@ void handle_ip(struct packet_state *ps)
 				if(iface->ip == ntohl(ip_hdr->ip_dst.s_addr))
 				{
 					printf("reached sr_router.c, print statement #1");
+					
+					
+					if(strcmp(ps->interface, if0) == 0)
+					{
+						if(strcmp(&iface->name[0], if1) == 0 || strcmp(&iface->name[0], if2) == 0)
+						{ return -1; /* Dropped packet */ }
+					}
 					found_case = 1;
 					uint8_t *iph_start = ps->response; /* mark where the ip header should go */
 					leave_hdr_room(ps, ip_offset);
@@ -241,21 +256,85 @@ void handle_ip(struct packet_state *ps)
 		{
 			/*check if interface == eth0*/
 			
-			if(ip_hdr->ip_ttl < 1)
+			if(strcmp(ps->interface, if0) == 0)
 			{
-				/*packet expired*/
-				icmp_response(ps, ip_hdr, ICMPT_TIMEEX, ICMPC_INTRANSIT);
+				if(strcmp(&ps->rt_entry->interface[0], if1) == 0 
+					|| strcmp(&ps->rt_entry->interface[0], if2) == 0)
+				{
+					leave_hdr_room(ps, ip_offset);
+					/*need at least 4 bytes for the dest and source ports */
+					if(ip_hdr->ip_p == IPPROTO_ICMP)
+					{
+						if(ft_contains(ps->sr, ntohl(ip_hdr->ip_src.s_addr),
+							ntohl(ip_hdr->ip_dst.s_addr), ip_hdr->ip_p, 0, 0) == 0)
+							/*send 0 if it's an ICMP packet because they don't 
+							have port numbers */
+						{ return 0; }
+					}
+					else if(ip_hdr->ip_p == IPPROTO_TCP 
+						||ip_hdr->ip_p == IPPROTO_UDP)
+					{
+						if(ps->len >= 4)	/* Need at least 4 bytes for the 2 port numbers */
+						{
+							uint16_t src_port = 0;
+							memmove(&src_port, ps->packet, 2);
+							uint16_t dst_port = 0;
+							memmove(&dst_port, (ps->packet + 2), 2);
+							if(ft_contains(ps->sr, ntohl(ip_hdr->ip_src.s_addr),
+							ntohl(ip_hdr->ip_dst.s_addr), ip_hdr->ip_p, src_port, dst_port) == 0)
+							{ return 0; }
+						}
+						else { return 0; }
+					}
+					else { return 0; }
+					
+				}
 			}
-			else /* FORWARD */
+			else
 			{
-				update_ip_hdr(ip_hdr);
+				if(ip_hdr->ip_p == IPPROTO_ICMP)
+					{
+						if(sr_add_ft_entry(ps->sr, ntohl(ip_hdr->ip_src.s_addr),
+							ntohl(ip_hdr->ip_dst.s_addr), ip_hdr->ip_p, 0, 0) == 0)
+						{ return 0; }
+						if(sr_add_ft_entry(ps->sr, ntohl(ip_hdr->ip_dst.s_addr),
+							ntohl(ip_hdr->ip_src.s_addr),ip_hdr->ip_p, 0, 0) == 0)
+						{ return 0; }
+					}
+					else if(ip_hdr->ip_p == IPPROTO_TCP 
+						|| ip_hdr->ip_p == IPPROTO_UDP)
+					{
+						if(ps->len >= 4)	/* Need at least 4 bytes for the 2 port numbers */
+						{
+							uint16_t src_port = 0;
+							memmove(&src_port, ps->packet, 2);
+							uint16_t dst_port = 0;
+							memmove(&dst_port, (ps->packet + 2), 2);
+							if(sr_add_ft_entry(ps->sr, ntohl(ip_hdr->ip_src.s_addr),
+								ntohl(ip_hdr->ip_dst.s_addr), ip_hdr->ip_p, src_port, dst_port) == 0)
+							{ return 0; }
+							if(sr_add_ft_entry(ps->sr, ntohl(ip_hdr->ip_dst.s_addr),
+								ntohl(ip_hdr->ip_src.s_addr), ip_hdr->ip_p, src_port, dst_port) == 0)
+							{ return 0; }
+							
+						}
+						else { return 0; }
+					}
+					else { return 0; }
+			}
+			
+				if(ip_hdr->ip_ttl < 1)
+				{
+					/*packet expired*/
+					icmp_response(ps, ip_hdr, ICMPT_TIMEEX, ICMPC_INTRANSIT);
+				}
+				else /* FORWARD */
+				{
+					update_ip_hdr(ip_hdr);
+				}
 			}
 		}
-		struct in_addr ipdst_host_order;
-		ipdst_host_order.s_addr = ntohl(ip_hdr->ip_dst.s_addr);
-		get_routing_if(ps, ipdst_host_order);
-	}
-			
+	return 1;	
 }
 
 void leave_hdr_room(struct packet_state *ps, int hdr_size)
@@ -301,6 +380,16 @@ void get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
 		}
 		current = current->next;
 	}
+}
+
+/*Temporary implementations of firewall functions for the compiler */
+int ft_contains(struct sr_instance *a, uint32_t b, uint32_t c, uint8_t d, uint8_t f, uint8_t e)
+{
+	return -1;
+}
+int sr_add_ft_entry(struct sr_instance *a, uint32_t b, uint32_t c, uint8_t d, uint8_t e, uint8_t f)
+{
+	return -1;
 }
 
 
