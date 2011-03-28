@@ -19,7 +19,7 @@ struct arp_cache_entry* next;
 };
 
 
-void handle_arp(struct packet_state*);
+struct arp_cache_entry* handle_ARP(struct packet_state*, struct sr_ethernet_hdr*);
 void got_Request(struct packet_state*, struct sr_arphdr*, const struct sr_ethernet_hdr*);
 void add_cache_entry(struct packet_state*, uint32_t, const unsigned char*);
 void print_cache_entry(struct arp_cache_entry*);

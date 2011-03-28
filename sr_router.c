@@ -88,13 +88,14 @@ Careful about memory allocation issues with incrementing packet
 	current.len = len;
 	current.rt_entry = 0;
 	current.interface = interface;
-	current.response = (uint8_t *)malloc(MAX_PAC_LENGTH);
-	if(current.response == NULL)
+	uint8_t *head = (uint8_t *)malloc(MAX_PAC_LENGTH);
+	if(head == NULL)
 	{
 		printf("Out of memory");
+		
 
 	}
-	uint8_t *head = current.response; /*keep a pointer to the head of allocated memory */
+	current.response = head; /*keep a pointer to the head of allocated memory */
 	current.res_len = MAX_PAC_LENGTH;
     struct sr_ethernet_hdr *eth = 0;
     int eth_offset = sizeof(struct sr_ethernet_hdr);
@@ -111,30 +112,31 @@ Careful about memory allocation issues with incrementing packet
 		switch(ntohs(eth->ether_type))
 		{
 			case (ETHERTYPE_IP):
-				handle_ip(&current);
 				printf("GOT an IP packet");
+				handle_ip(&current);
+				char *out_iface = (char *)malloc(IF_LEN +1); /*plus 1 for null termination*/
+				if(create_eth_hdr(head, &current, out_iface) > 0)
+				{
+					sr_send_packet(sr, head, current.res_len, out_iface);
+				}
+				free(out_iface);
 				break;
 
 			case (ETHERTYPE_ARP):
-				handle_ARP(&current, eth);
 				printf("Got an ARP packet");
+				struct arp_cache_entry *new_entry = handle_ARP(&current, eth);
+				if(new_entry == NULL)
+				{
+					sr_send_packet(sr, head, current.res_len, interface);
+				}
 				break;
 			default:
 				printf("%x", eth->ether_type);
 		}
 	}
 
-	char *out_iface = (char *)malloc(IF_LEN +1); /*plus 1 for null termination*/
-
-	if(create_eth_hdr(head, &current, out_iface) > 0)
-	{
-		sr_send_packet(sr, head, current.res_len, out_iface);
-	}
-	free(out_iface);
-
 	free(head);
     
-
 }/* end sr_ForwardPacket */
 
 int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, char *iface)
@@ -167,13 +169,13 @@ int handle_ip(struct packet_state *ps)
 	{
 		struct ip *ip_hdr = (struct ip *)ps->packet;
 		/* indicates IP header has options, which we don't care about */
-		if(ip_hdr->ip_len > sizeof(struct ip))
+		if((ip_hdr->ip_hl)*4 > sizeof(struct ip)) /* x 4 because there are 4 bytes per 32 bit word */
 		{
 			/*ps->packet = ps->packet + (ip_hdr->ip_len - sizeof(struct ip));*/
-			printf("IP packet has options and has been dropped\n");
+			printf("struct length: %zu\npacketlength: %u\n", sizeof(struct ip), ntohs(ip_hdr->ip_len));
 		}
 		int ip_offset = sizeof(struct ip);
-		
+		printf("section a\n");
 		char *if0 = "eth0";
 		char *if1 = "eth1";
 		char *if2 = "eth2";
@@ -182,6 +184,8 @@ int handle_ip(struct packet_state *ps)
 		ipdst_host_order.s_addr = ntohl(ip_hdr->ip_dst.s_addr);
 		get_routing_if(ps, ipdst_host_order);
 		
+		printf("section b\n");
+		
 		/*TODO: make sure interface matching incoming interface ???*/
 
 		int found_case = 0;	/*used to determine which loops to go into*/
@@ -189,10 +193,18 @@ int handle_ip(struct packet_state *ps)
 		if(!found_case)
 		{
 			struct sr_if *iface = ps->sr->if_list;
+			char *current_address = (char *) malloc((INET_ADDRSTRLEN+1)*sizeof(char));
+			char *dest_address = (char *) malloc((INET_ADDRSTRLEN+1)*sizeof(char));
 			while(iface != NULL)
 			{
+				
+				inet_ntop(AF_INET, &iface->ip, current_address, (INET_ADDRSTRLEN+1));
+				uint32_t temporary = ip_hdr->ip_dst.s_addr;
+				inet_ntop(AF_INET, &temporary, dest_address, (INET_ADDRSTRLEN+1));
+				printf("current address: %s\n\
+						destination address: %s\n", current_address, dest_address);
 				/* TODO: This will need rigorous testing */
-				if(iface->ip == ntohl(ip_hdr->ip_dst.s_addr))
+				if(iface->ip == ip_hdr->ip_dst.s_addr)
 				{
 					printf("reached sr_router.c, print statement #1");
 					
@@ -238,6 +250,11 @@ int handle_ip(struct packet_state *ps)
 			
 			if(strcmp(ps->interface, if0) == 0)
 			{
+				/* 
+				&^%*&*&%&^%&%&^%&^%*%*%^&%&^%&%&*^%&^
+				BUS ERROR 
+				&*^&*%#%^%^$%(*&*(&))(*(&*^%^$%#$@$&%
+				*/
 				if(strcmp(&ps->rt_entry->interface[0], if1) == 0 
 					|| strcmp(&ps->rt_entry->interface[0], if2) == 0)
 				{
