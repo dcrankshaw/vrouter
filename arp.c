@@ -31,6 +31,7 @@ struct arp_cache_entry* handle_ARP(struct packet_state * ps, struct sr_ethernet_
 	case (ARP_REQUEST):
 	  printf("Got an ARP Request.\n");
 	  got_Request(ps, arp, eth);
+	  
 	  return NULL;
 	  break;
 	case (ARP_REPLY):
@@ -61,6 +62,8 @@ void got_Request(struct packet_state * ps, struct sr_arphdr * arp_hdr, const str
 		{
 			printf("IP matches interface: %s\n", iface->name);
 			construct_reply(ps, arp_hdr, iface->addr, eth);
+			testing(ps, arp_hdr);
+			
 			break;
 		}
 		else
@@ -73,9 +76,40 @@ void got_Request(struct packet_state * ps, struct sr_arphdr * arp_hdr, const str
 	
 }
 
+void testing(struct packet_state* ps, struct sr_arphdr *arp)
+{
+	printf("\n---JUST TESTING STUFF---\n");
+	struct sr_if * iface=ps->sr->if_list;
+	while(iface)
+	{
+	add_cache_entry(ps, iface->ip, iface->addr);
+	printf("%s Added To Cache.\n", iface->name);
+		iface=iface->next;
+	}
+	iface=sr_get_interface(ps->sr, "eth1");
+	struct in_addr ip_addr;
+	ip_addr.s_addr = iface->ip;
+	printf("IP: %s\n", inet_ntoa(ip_addr));
+	struct arp_cache_entry* ent=search_cache(ps, iface->ip);
+	printf("---FOUND ENTRY:----\n");
+	print_cache_entry(ent);
+	print_cache(ps->sr);
+	delete_entry(ps, ent);
+	print_cache(ps->sr);
+	
+}
 
+struct arp_cache_entry* got_Reply(struct packet_state * ps, struct sr_arphdr * arp, const struct sr_ethernet_hdr* eth)
+{
+	//Add IP and address to cache
+	add_cache_entry(ps, arp->ar_sip, arp->ar_sha);
+	
+	//Return newly added entry
+	return search_cache(ps, arp->ar_sip);
+	
+}
 
-void add_cache_entry(struct packet_state* ps, uint32_t ip, const unsigned char* mac)
+void add_cache_entry(struct packet_state* ps,const uint32_t ip, const unsigned char* mac)
 {
 struct arp_cache_entry* cache_walker=0;
 /*
@@ -112,12 +146,66 @@ assert(ps);
     cache_walker=cache_walker->next;
     cache_walker->ip_add=ip;
     memcpy(cache_walker->mac, mac,ETHER_ADDR_LEN);
-   cache_walker->timenotvalid=time(NULL) +20;	/* Each cache entry is valid for 20 seconds */
+   cache_walker->timenotvalid=time(NULL) +15;	/* Each cache entry is valid for 15 seconds */
    cache_walker->next=0;
     print_cache(ps->sr);
     }
 
 }
+
+struct arp_cache_entry* search_cache(struct packet_state* ps,const uint32_t ip)
+{
+	struct arp_cache_entry* cache_walker=0;
+	cache_walker=ps->sr->arp_cache;
+	//struct arp_cache_entry* prev=0;
+	while(cache_walker->next)
+	{
+		if(cache_walker->timenotvalid > time(NULL))
+		{
+		if(ip==cache_walker->ip_add)
+			return cache_walker;
+		}
+		else
+		{
+			delete_entry(ps, cache_walker);
+		}
+			cache_walker=cache_walker->next;
+	}
+	//IP Address is not in cache
+	printf("The IP address is not in cache.");
+	return NULL;
+}
+
+void delete_entry(struct packet_state* ps,const struct arp_cache_entry* want_deleted)
+{
+	struct arp_cache_entry* prev=0;
+	struct arp_cache_entry* walker=0;
+	walker=ps->sr->arp_cache;
+	
+	while(walker->next)
+	{
+		if(walker==want_deleted)
+		{
+			if(prev==0)
+			{
+				ps->sr->arp_cache=ps->sr->arp_cache->next;
+				break;
+			}
+			else
+			{
+				prev->next=prev->next->next;
+				break;
+			}
+		}
+		else
+		{
+			prev=walker;
+			walker=walker->next;
+		}
+	}
+	
+}
+
 
 void print_cache(struct sr_instance* sr)
 {
