@@ -18,12 +18,12 @@ struct arp_cache_entry* handle_ARP(struct packet_state * ps, struct sr_ethernet_
 
   int arp_offset=sizeof(struct sr_arphdr);
 
-  if(ps->len <sizeof(struct sr_arphdr))
-    {
+	if(ps->len <sizeof(struct sr_arphdr))
+	{
       printf("Malformed ARP Packet.");
       /*TODO: What needs to be done now? */
     }
-  else
+	else
     {
       	arp=(struct sr_arphdr *)(ps->packet);
       	switch (ntohs(arp->ar_op))
@@ -40,10 +40,8 @@ struct arp_cache_entry* handle_ARP(struct packet_state * ps, struct sr_ethernet_
 	default:
 	  printf("ARP: Not Request nor Reply\n");
 	  printf("%hu", arp->ar_op);
-
 	}
-
-    }
+	return NULL;
 }
 
 void got_Request(struct packet_state * ps, struct sr_arphdr * arp_hdr, const struct sr_ethernet_hdr* eth)
@@ -52,13 +50,13 @@ void got_Request(struct packet_state * ps, struct sr_arphdr * arp_hdr, const str
 	assert(arp_hdr);
 	assert(eth);
 	
-	uint32_t targetIP=arp_hdr->ar_tip;
-	struct sr_if * iface=ps->sr->if_list;
+	uint32_t targetIP = arp_hdr->ar_tip;
+	struct sr_if * iface = ps->sr->if_list;
 
 	while(iface!=NULL)
 	{
-			sr_print_if(iface);
-		if(iface->ip==targetIP)
+		sr_print_if(iface);
+		if(iface->ip == targetIP)
 		{
 			printf("IP matches interface: %s\n", iface->name);
 			construct_reply(ps, arp_hdr, iface->addr, eth);
@@ -235,22 +233,23 @@ void print_cache_entry(struct arp_cache_entry * ent)
 	ip_addr.s_addr = ent->ip_add;
 	printf("IP: %s MAC: ", inet_ntoa(ip_addr));
 	DebugMAC(ent->mac); 
-	printf(" Time when Invalid: %u\n",ent->timenotvalid);
+	printf(" Time when Invalid: %lu\n",(long)ent->timenotvalid);
 }
 
 //HAS NOT BEEN TESTED
-void construct_reply(struct packet_state* ps, const struct sr_arphdr* arp_hdr, const unsigned char* mac, const struct sr_ethernet_hdr* eth)
+void construct_reply(struct packet_state* ps, const struct sr_arphdr* arp_hdr, 
+					const unsigned char* mac, const struct sr_ethernet_hdr* eth)
 {
-	struct sr_arphdr * reply;
-	reply=(struct sr_aprhdr*)malloc(sizeof(struct sr_arphdr));
+	struct sr_arphdr *reply;
+	reply = (struct sr_arphdr*)malloc(sizeof(struct sr_arphdr));
 	reply->ar_hrd = arp_hdr->ar_hrd;
 	reply->ar_pro = arp_hdr->ar_pro;
-	reply->ar_hln=ETHER_ADDR_LEN;
+	reply->ar_hln= ETHER_ADDR_LEN;
 	reply->ar_pln = arp_hdr->ar_pln;
-	reply->ar_op = ARP_REPLY;
-	memcpy(reply->ar_sha, mac,ETHER_ADDR_LEN);
+	reply->ar_op = htons(ARP_REPLY);
+	memmove(reply->ar_sha, mac,ETHER_ADDR_LEN);
 	reply->ar_sip=arp_hdr->ar_tip;
-	memcpy(reply->ar_tha, arp_hdr->ar_sha,ETHER_ADDR_LEN);
+	memmove(reply->ar_tha, arp_hdr->ar_sha,ETHER_ADDR_LEN);
 	reply->ar_tip=arp_hdr->ar_sip;
 	
 	//ARP Constructed, Now Add Ethernet Header
@@ -258,12 +257,14 @@ void construct_reply(struct packet_state* ps, const struct sr_arphdr* arp_hdr, c
 	new_eth=(struct sr_ethernet_hdr*)malloc(sizeof(struct sr_ethernet_hdr));
 	memcpy(new_eth->ether_dhost, eth->ether_shost,ETHER_ADDR_LEN);
 	memcpy(new_eth->ether_shost, mac,ETHER_ADDR_LEN);
-	new_eth->ether_type=ETHERTYPE_ARP;
+	new_eth->ether_type=htons(ETHERTYPE_ARP);
 	
 	int eth_offset=sizeof(struct sr_ethernet_hdr);
-	ps->response=reply;
+	memmove(ps->response, reply, sizeof(struct sr_arphdr));
 	ps->response-=eth_offset;
-	ps->response=new_eth;
+	memmove(ps->response, new_eth, eth_offset);
+	free(reply);
+	free(new_eth);
 	ps->res_len=eth_offset + sizeof(struct sr_arphdr);
 	printf("Response was constructed.\n");
 }
