@@ -1,5 +1,5 @@
 /*** ARP File
- */
+*/
 
 #include <stdlib.h>
 #include <assert.h>
@@ -15,35 +15,36 @@
 
 struct arp_cache_entry* handle_ARP(struct packet_state * ps, struct sr_ethernet_hdr* eth)
 {
-  struct sr_arphdr *arp =0;
+	struct sr_arphdr *arp =0;
 
-  int arp_offset=sizeof(struct sr_arphdr);
+	//int arp_offset=sizeof(struct sr_arphdr);
 
 	if(ps->len <sizeof(struct sr_arphdr))
 	{
-      printf("Malformed ARP Packet.");
-      /*TODO: What needs to be done now? */
-    }
+		printf("Malformed ARP Packet.");
+		/*TODO: What needs to be done now? */
+	}
 	else
-    {
-      	arp=(struct sr_arphdr *)(ps->packet);
-      	switch (ntohs(arp->ar_op))
 	{
-	case (ARP_REQUEST):
-	  printf("Got an ARP Request.\n");
-	  got_Request(ps, arp, eth);
-	  
-	  return NULL;
-	  break;
-	case (ARP_REPLY):
-	  printf("Got an ARP Reply.\n");
-	  break;
-	default:
-	  printf("ARP: Not Request nor Reply\n");
-	  printf("%hu", arp->ar_op);
+		arp=(struct sr_arphdr *)(ps->packet);
+		switch (ntohs(arp->ar_op))
+		{
+			case (ARP_REQUEST):
+	  			printf("Got an ARP Request.\n");
+	  			got_Request(ps, arp, eth);
+	  			return NULL;
+	  			break;
+			case (ARP_REPLY):
+	  			printf("Got an ARP Reply.\n");
+	  			return got_Reply(ps, arp, eth); //MIGHT NOT NEED ETH --MS
+	  			break;
+			default:
+	  			printf("ARP: Not Request nor Reply\n");
+	  			printf("%hu", arp->ar_op);
+	  			return NULL;
+		}
 	}
 	return NULL;
-}
 }
 void got_Request(struct packet_state * ps, struct sr_arphdr * arp_hdr, const struct sr_ethernet_hdr* eth)
 {
@@ -61,7 +62,7 @@ void got_Request(struct packet_state * ps, struct sr_arphdr * arp_hdr, const str
 		{
 			printf("IP matches interface: %s\n", iface->name);
 			construct_reply(ps, arp_hdr, iface->addr, eth);
-			//testing(ps, arp_hdr);
+			testing(ps, arp_hdr);
 			
 			break;
 		}
@@ -116,38 +117,40 @@ void add_cache_entry(struct packet_state* ps,const uint32_t ip, const unsigned c
 	struct arp_cache_entry* cache_walker=0;
 
 	assert(ps);
-    assert(mac);
-    assert(ip);
-    
-    if(ps->sr->arp_cache ==0)	/*If there are no entries in cache */
-    {
-    	ps->sr->arp_cache=(struct arp_cache_entry*)malloc(sizeof(struct arp_cache_entry));
-    	assert(ps->sr->arp_cache);
-    	ps->sr->arp_cache->next=0;
-    	ps->sr->arp_cache->ip_add=ip;
-    	memcpy(ps->sr->arp_cache->mac, mac,ETHER_ADDR_LEN);
-    	ps->sr->arp_cache->timenotvalid=time(NULL) +20;	/* Each cache entry is valid for 20 seconds */
-    	print_cache_entry(ps->sr->arp_cache);
-    }
-    else
-    {
-    /*DO WE WANT TO CLEAN OUT INVALID ENTRIES NOW TOO 
-    OR ONLY WHEN SEARCHING FOR AN ENTRY??*/
-    cache_walker = ps->sr->arp_cache;
-    while(cache_walker->next)
-    {
-    	cache_walker=cache_walker->next;
-    	//CHECK IF PAST TIME INVALID AND DELETE IF INALID??
-    }
-    cache_walker->next=(struct arp_cache_entry*)malloc(sizeof(struct arp_cache_entry));
-    assert(cache_walker->next);
-    cache_walker=cache_walker->next;
-    cache_walker->ip_add=ip;
-    memcpy(cache_walker->mac, mac,ETHER_ADDR_LEN);
-   cache_walker->timenotvalid=time(NULL) +15;	/* Each cache entry is valid for 15 seconds */
-   cache_walker->next=0;
-    print_cache(ps->sr);
-    }
+	assert(mac);
+	assert(ip);
+
+	if(ps->sr->arp_cache ==0)	/*If there are no entries in cache */
+	{
+		ps->sr->arp_cache=(struct arp_cache_entry*)malloc(sizeof(struct arp_cache_entry));
+		assert(ps->sr->arp_cache);
+		ps->sr->arp_cache->next=0;
+		ps->sr->arp_cache->ip_add=ip;
+		memcpy(ps->sr->arp_cache->mac, mac,ETHER_ADDR_LEN);
+		ps->sr->arp_cache->timenotvalid=time(NULL) +15;	/* Each cache entry is valid for 15 seconds */
+		print_cache_entry(ps->sr->arp_cache);
+	}
+	else
+	{
+		cache_walker = ps->sr->arp_cache;
+		while(cache_walker->next)
+		{
+			if(cache_walker->timenotvalid < time(NULL))
+			{
+				delete_entry(ps,cache_walker);
+				cache_walker=cache_walker->next;
+			}
+		cache_walker=cache_walker->next;
+		}
+	cache_walker->next=(struct arp_cache_entry*)malloc(sizeof(struct arp_cache_entry));
+	assert(cache_walker->next);
+	cache_walker=cache_walker->next;
+	cache_walker->ip_add=ip;
+	memcpy(cache_walker->mac, mac,ETHER_ADDR_LEN);
+	cache_walker->timenotvalid=time(NULL) +15;	/* Each cache entry is valid for 15 seconds */
+	cache_walker->next=0;
+	print_cache(ps->sr);
+	}
 
 }
 
@@ -155,7 +158,6 @@ struct arp_cache_entry* search_cache(struct packet_state* ps,const uint32_t ip)
 {
 	struct arp_cache_entry* cache_walker=0;
 	cache_walker=ps->sr->arp_cache;
-	//struct arp_cache_entry* prev=0;
 	while(cache_walker)
 	{
 		if(cache_walker->timenotvalid > time(NULL))
@@ -209,7 +211,6 @@ void delete_entry(struct packet_state* ps,const struct arp_cache_entry* want_del
 	
 }
 
-
 void print_cache(struct sr_instance* sr)
 {
 	printf("---ARP CACHE---\n");
@@ -237,7 +238,6 @@ void print_cache_entry(struct arp_cache_entry * ent)
 	printf(" Time when Invalid: %lu\n",(long)ent->timenotvalid);
 }
 
-//HAS NOT BEEN TESTED
 void construct_reply(struct packet_state* ps, const struct sr_arphdr* arp_hdr, const unsigned char* mac, const struct sr_ethernet_hdr* eth)
 {
 	struct sr_arphdr *reply;
@@ -255,8 +255,8 @@ void construct_reply(struct packet_state* ps, const struct sr_arphdr* arp_hdr, c
 	//ARP Constructed, Now Add Ethernet Header
 	struct sr_ethernet_hdr* new_eth;
 	new_eth=(struct sr_ethernet_hdr*)malloc(sizeof(struct sr_ethernet_hdr));
-	memcpy(new_eth->ether_dhost, eth->ether_shost,ETHER_ADDR_LEN);
-	memcpy(new_eth->ether_shost, mac,ETHER_ADDR_LEN);
+	memmove(new_eth->ether_dhost, eth->ether_shost,ETHER_ADDR_LEN);
+	memmove(new_eth->ether_shost, mac,ETHER_ADDR_LEN);
 	new_eth->ether_type=htons(ETHERTYPE_ARP);
 	
 	int eth_offset=sizeof(struct sr_ethernet_hdr);
