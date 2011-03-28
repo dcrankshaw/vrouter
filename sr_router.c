@@ -106,7 +106,7 @@ Careful about memory allocation issues with incrementing packet
     {
 		eth = (struct sr_ethernet_hdr *)packet;
 		leave_hdr_room(&current, eth_offset);
-		
+
 		switch(ntohs(eth->ether_type))
 		{
 			case (ETHERTYPE_IP):
@@ -138,6 +138,7 @@ Careful about memory allocation issues with incrementing packet
 
 int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, char *iface)
 {
+<<<<<<< HEAD
 	/*check ARP cache to see if the MAC address for the outgoing IP address is there*/
 	/* if not present, sleep(5), check again. Repeat 5 times, then send ICMP
 		host unreachable message */
@@ -147,7 +148,6 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, char *iface)
 
 	/*when buffering packet, memmove() the packet to the buffer, then maddie can use the
 	response field in packet_state to build her arp_request*/
-
 	printf("Ethernet header creation unimplemented at this time");
 	return -1;
 }
