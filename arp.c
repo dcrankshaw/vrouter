@@ -62,7 +62,7 @@ void got_Request(struct packet_state * ps, struct sr_arphdr * arp_hdr, const str
 		{
 			printf("IP matches interface: %s\n", iface->name);
 			construct_reply(ps, arp_hdr, iface->addr, eth);
-			testing(ps, arp_hdr);
+			//testing(ps, arp_hdr);
 			
 			break;
 		}
@@ -79,14 +79,17 @@ void got_Request(struct packet_state * ps, struct sr_arphdr * arp_hdr, const str
 void testing(struct packet_state* ps, struct sr_arphdr *arp)
 {
 	printf("\n---JUST TESTING STUFF---\n");
+	printf("PRINT CACHE FIRST:::\n");
+	print_cache(ps->sr);
 	struct sr_if * iface=ps->sr->if_list;
 	while(iface)
 	{
 	add_cache_entry(ps, iface->ip, iface->addr);
 	printf("%s Added To Cache.\n", iface->name);
-		iface=iface->next;
+	iface=iface->next;
+	printf("HERE\n");
 	}
-	iface=sr_get_interface(ps->sr, "eth1");
+	iface=sr_get_interface(ps->sr, "eth0");
 	struct in_addr ip_addr;
 	ip_addr.s_addr = iface->ip;
 	printf("IP: %s\n", inet_ntoa(ip_addr));
@@ -111,13 +114,9 @@ struct arp_cache_entry* got_Reply(struct packet_state * ps, struct sr_arphdr * a
 
 void add_cache_entry(struct packet_state* ps,const uint32_t ip, const unsigned char* mac)
 {
-struct arp_cache_entry* cache_walker=0;
-/*
-struct arp_cache_entry ent; /*=(struct arp_cache_entry)malloc(sizeof(struct arp_cache_entry));*/
-/*strncpy(ent.mac, mac,ETHER_ADDR_LEN);
-ent.ip_add=ip;
-*/
-assert(ps);
+	struct arp_cache_entry* cache_walker=0;
+
+	assert(ps);
     assert(mac);
     assert(ip);
     
@@ -158,7 +157,7 @@ struct arp_cache_entry* search_cache(struct packet_state* ps,const uint32_t ip)
 	struct arp_cache_entry* cache_walker=0;
 	cache_walker=ps->sr->arp_cache;
 	//struct arp_cache_entry* prev=0;
-	while(cache_walker->next)
+	while(cache_walker)
 	{
 		if(cache_walker->timenotvalid > time(NULL))
 		{
@@ -182,7 +181,7 @@ void delete_entry(struct packet_state* ps,const struct arp_cache_entry* want_del
 	struct arp_cache_entry* walker=0;
 	walker=ps->sr->arp_cache;
 	
-	while(walker->next)
+	while(walker)
 	{
 		if(walker==want_deleted)
 		{
@@ -190,6 +189,11 @@ void delete_entry(struct packet_state* ps,const struct arp_cache_entry* want_del
 			{
 				ps->sr->arp_cache=ps->sr->arp_cache->next;
 				break;
+			}
+			else if(!prev->next->next)
+			{
+			prev->next=NULL;
+			break;
 			}
 			else
 			{
@@ -217,11 +221,10 @@ void print_cache(struct sr_instance* sr)
 		return;
 	}
 	cache_walker=sr->arp_cache;
-	print_cache_entry(cache_walker);
-	while(cache_walker->next)
+	while(cache_walker)
 	{
-		cache_walker=cache_walker->next;
 		print_cache_entry(cache_walker);
+		cache_walker=cache_walker->next;
 	}
 }
 
