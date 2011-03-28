@@ -1,4 +1,3 @@
-
 /*-------------------------------------------------------------
 *
 *Method:
@@ -49,7 +48,7 @@ void handle_icmp(struct packet_state *ps, struct ip *ip_hdr)
 		I'm worried about memory allocation issues
 		Possible fix is to pass in header to already allocated memory (max packet size maybe)
 		and then return the length of the packet. */
-		
+
 		/*
 		   -Change appropriate fields in the IP header */
 
@@ -61,26 +60,26 @@ void icmp_response(struct packet_state *ps, struct ip *ip_hdr, unsigned int type
 		case ICMPT_ECHOREPLY:
 			create_icmp_hdr(ps, type, code);
 			break;
-		
+
 		case ICMPT_DESTUN:
 			create_icmp_hdr(ps, type, code);
 			create_icmp_data(ps, ip_hdr);
 			break;
-		
+
 		case ICMPT_TIMEEX:
 			create_icmp_hdr(ps, type, code);
 			create_icmp_data(ps, ip_hdr);
 			break;
-		
+
 		case ICMPT_TRACERT:
 			printf("Traceroute ICMP message response is unimplemented at this time");
 			break;
-		
+
 		default:
 			printf("ICMP type %d is unimplemented at this time", type);
 			break;
 	}
-	
+
 	printf("icmp_response() currently unimplemented");
 }
 

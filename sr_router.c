@@ -17,12 +17,15 @@
 #include <unistd.h>
 #include <string.h>
 
-
 #include "sr_if.h"
 #include "sr_rt.h"
 #include "sr_router.h"
 #include "sr_protocol.h"
 #include "icmp.h"
+#include "arp.h"
+
+struct packet_buffer* queue;
+struct flow_control *flow_tbl; /*Here or in init??*/
 
 
 /*--------------------------------------------------------------------- 
@@ -32,29 +35,15 @@
  * Initialize the routing subsystem
  * 
  *---------------------------------------------------------------------*/
-
-struct packet_buffer *queue;
-struct arp_cache *cache;
-struct flow_control *flow_tbl;
-
 void sr_init(struct sr_instance* sr) 
 {
     /* REQUIRES */
     assert(sr);
-	
-	/* #########################################
-	* In here initilize the packet buffer (a linked list of some sort(?)
-	* that contains some piece of timeout information), the flow control
-	* table, and the arp cache
-	*
-	* ######################################### */
-
-	
-	queue = NULL;
-	cache = NULL;
-	flow_tbl = NULL;
 
     /* Add initialization code here! */
+	sr->arp_cache=0;
+	queue=0;
+	flow_tbl=0;
 
 } /* -- sr_init -- */
 
@@ -103,7 +92,7 @@ Careful about memory allocation issues with incrementing packet
 	if(current.response == NULL)
 	{
 		printf("Out of memory");
-		
+
 	}
 	uint8_t *head = current.response; /*keep a pointer to the head of allocated memory */
 	current.res_len = MAX_PAC_LENGTH;
@@ -117,39 +106,32 @@ Careful about memory allocation issues with incrementing packet
     else
     {
 		eth = (struct sr_ethernet_hdr *)packet;
-		current.packet -= eth_offset;
-		current.len -= eth_offset;
-		
-		switch(eth->ether_type)
+		leave_hdr_room(&current, eth_offset);
+
+		switch(ntohs(eth->ether_type))
 		{
-			case htons(ETHERTYPE_IP):
-				leave_hdr_room(&current, eth_offset);
+			case (ETHERTYPE_IP):
 				handle_ip(&current);
 				printf("GOT an IP packet");
 				break;
-			case htons(ETHERTYPE_ARP):
-				/*struct arp_cache_entry *entry = handle_ARP(&current);
-				if(entry != NULL)
-				{
-					
-					
-				}*/
+
+			case (ETHERTYPE_ARP):
+				handle_ARP(&current, eth);
 				printf("Got an ARP packet");
 				break;
 			default:
 				printf("%x", eth->ether_type);
 		}
 	}
-	
-	
-	char *out_iface = (char *) malloc(IF_LEN + 1); /* plus 1 for null termination */
-	
+
+	char *out_iface = (char *)malloc(IF_LEN +1); /*plus 1 for null termination*/
+
 	if(create_eth_hdr(head, &current, out_iface) > 0)
 	{
 		sr_send_packet(sr, head, current.res_len, out_iface);
 	}
 	free(out_iface);
-	
+
 	free(head);
     
 
@@ -157,27 +139,24 @@ Careful about memory allocation issues with incrementing packet
 
 int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, char *iface)
 {
-	
-	
+
 	/*check ARP cache to see if the MAC address for the outgoing IP address is there*/
 	/* if not present, sleep(5), check again. Repeat 5 times, then send ICMP
 		host unreachable message */
-		
+
 	/* This method must also figure out the interface to send the packet out of */
-	
-	
+
+
 	/*when buffering packet, memmove() the packet to the buffer, then maddie can use the
 	response field in packet_state to build her arp_request*/
-	
 	printf("Ethernet header creation unimplemented at this time");
 	return -1;
-
 }
 
 int handle_ip(struct packet_state *ps)
 {
 	/*Load IP header*/
-	
+
 	if(ps->len < sizeof(struct ip))
 	{
 		printf("malformed IP packet");
@@ -204,6 +183,7 @@ int handle_ip(struct packet_state *ps)
 		get_routing_if(ps, ipdst_host_order);
 		
 		/*TODO: make sure interface matching incoming interface ???*/
+
 		int found_case = 0;	/*used to determine which loops to go into*/
 		/*Deals with router as destination*/
 		if(!found_case)
@@ -236,7 +216,7 @@ int handle_ip(struct packet_state *ps)
 					}
 					/* TODO: create the IP header */
 					ip_hdr->ip_len = htons(ps->response - iph_start);
-					ip_hdr->ip_ttl = INIT_TTL;
+					// ip_hdr->ip_ttl = INI_TTL; /*WHAT IS INI_TTL AND WHERE DEFINED?*/
 					ip_hdr->ip_p = IPPROTO_ICMP;
 					struct in_addr temp = ip_hdr->ip_src;
 					ip_hdr->ip_src = ip_hdr->ip_dst;
@@ -250,11 +230,11 @@ int handle_ip(struct packet_state *ps)
 				}
 			}
 		}
-		
+
 		/*Deals with forwarding*/
 		if(!found_case)
 		{
-			/*check if interface == eth0*/
+			/*check if interface==eth0*/
 			
 			if(strcmp(ps->interface, if0) == 0)
 			{
@@ -334,7 +314,7 @@ int handle_ip(struct packet_state *ps)
 				}
 			}
 		}
-	return 1;	
+	return 1;
 }
 
 void leave_hdr_room(struct packet_state *ps, int hdr_size)
@@ -342,7 +322,7 @@ void leave_hdr_room(struct packet_state *ps, int hdr_size)
 	ps->packet += hdr_size;
 	ps->len -= hdr_size;
 	ps->response += hdr_size;
-	ps->res_len += hdr_size;
+	//ps->res_len += hdr_size; 	/*I DON'T THINK WE WANT TO DO THIS*/
 }
 
 void update_ip_hdr(struct ip *ip_hdr)
@@ -351,7 +331,7 @@ void update_ip_hdr(struct ip *ip_hdr)
 	uint16_t temp = ntohs(ip_hdr->ip_sum);
 	temp += -1;
 	ip_hdr->ip_sum = htons(temp);
-	
+
 	/*The change in ip_ttl was -1 so we subtract 1 (see RFC 1071.2.4). Because it was
 	subtraction, there can be no overflow*/
 }
@@ -374,8 +354,8 @@ void get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
 			if(min_mask.s_addr <= current->mask.s_addr)
 			{
 				/*update the best fitting mask to the current one, and point found to current*/
-				ps->rt_entry = current;
-				min_mask = ps->rt_entry->mask;
+				ps->rt_entry=current;
+				min_mask=ps->rt_entry->mask;
 			}
 		}
 		current = current->next;

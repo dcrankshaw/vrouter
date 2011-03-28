@@ -16,6 +16,7 @@
 
 #include "sr_protocol.h"
 
+
 /* we dont like this debug , but what to do for varargs ? */
 #ifdef _DEBUG_
 #define Debug(x, args...) printf(x, ## args)
@@ -35,8 +36,7 @@ struct sr_if;
 struct sr_rt;
 
 extern struct packet_buffer *queue;
-extern struct arp_cache *cache;
-extern struct flow_control *flow_tbl;
+extern struct flow_control* flow_tbl; /* NEED THIS OR GOING IN INSTANCE??*/
 
 /* ----------------------------------------------------------------------------
  * struct sr_instance
@@ -57,6 +57,7 @@ struct sr_instance
     struct sr_if* if_list; /* list of interfaces */
     struct sr_rt* routing_table; /* routing table */
     FILE* logfile;
+    struct arp_cache_entry* arp_cache;
 };
 
 /* -----------------------------------------------------------------------
@@ -80,36 +81,24 @@ struct packet_state
 
 struct packet_buffer
 {
-	uint8_t *packet;
+	uint8_t* packet;
 	struct in_addr ip_dst;
-	time_t entry_time;		/* the time at which the last ARP request for this packet was sent,
-							   fill with time(NULL) */
+	time_t entry_time; /* the time at which the last ARP request for this packet 
+							was sent, fill with time(NULL) */
 	struct packet_buffer *next;
-	int num_arp_reqs;		/* The number of arp requests already sent */
-	
+	int num_arp_reqs; 	/* The number of arp requests already sent. */
 };
 
-struct arp_cache
-{
-	struct arp_cache *next;
-	struct in_addr ip_dst;
-	unsigned char mac[ETHER_ADDR_LEN];
-	time_t entry_time;
-};
-
+/* KEEPING THIS OR GOING IN INSTANCE?? */
 struct flow_control
 {
 	struct in_addr src_ip;
 	struct in_addr dst_ip;
-	int ip_p;				/* the IP protocol */
+	int ip_p; 				/*The IP protocol */
 	char *src_port;
 	char *dst_port;
-	struct flow_control *next;
-
+	struct flow_control* next;
 };
-
-
-
 
 /* -- sr_main.c -- */
 int sr_verify_routing_table(struct sr_instance* sr);
@@ -124,7 +113,7 @@ void sr_init(struct sr_instance* );
 void sr_handlepacket(struct sr_instance* , uint8_t * , unsigned int , char* );
 int handle_ip(struct packet_state *);
 void update_ip_hdr(struct ip*);
-void get_routing_if(struct packet_state *, struct in_addr);
+void get_routing_if(struct packet_state*, struct in_addr);
 void leave_hdr_room(struct packet_state *, int);
 int create_eth_hdr(uint8_t *, struct packet_state *, char *);
 
