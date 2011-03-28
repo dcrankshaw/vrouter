@@ -51,29 +51,24 @@
 #ifndef __LITTLE_ENDIAN
 #define __LITTLE_ENDIAN 1
 #endif
-
 #ifndef __BIG_ENDIAN
 #define __BIG_ENDIAN 2
 #endif
-
 #ifdef _CYGWIN_
 #ifndef __BYTE_ORDER
 #define __BYTE_ORDER __LITTLE_ENDIAN
 #endif
 #endif
-
 #ifdef _LINUX_
 #ifndef __BYTE_ORDER
 #define __BYTE_ORDER __LITTLE_ENDIAN
 #endif
 #endif
-
 #ifdef _SOLARIS_
 #ifndef __BYTE_ORDER
 #define __BYTE_ORDER __BIG_ENDIAN
 #endif
 #endif
-
 #ifdef _DARWIN_
 #ifndef __BYTE_ORDER
 #define __BYTE_ORDER __BIG_ENDIAN
@@ -94,7 +89,6 @@ struct ip
 #else
 #error "Byte ordering ot specified " 
 #endif 
-
     uint8_t ip_tos;			/* type of service */
     uint16_t ip_len;			/* total length */
     uint16_t ip_id;			/* identification */
@@ -148,7 +142,7 @@ struct sr_ethernet_hdr
 #endif
 
 #ifndef MAX_PAC_LENGTH
-#define MAX_PAC_LENGTH  10000        /* Max packet length the router will generate */
+#define MAX_PAC_LENGTH 	10000			/* Max packet length the router will generate */
 #endif
 
 #ifndef ICMPC_PORTUN

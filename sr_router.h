@@ -12,8 +12,10 @@
 #include <netinet/in.h>
 #include <sys/time.h>
 #include <stdio.h>
+#include <time.h>
 
 #include "sr_protocol.h"
+
 
 /* we dont like this debug , but what to do for varargs ? */
 #ifdef _DEBUG_
@@ -32,6 +34,9 @@
 /* forward declare */
 struct sr_if;
 struct sr_rt;
+
+extern struct packet_buffer *queue;
+extern struct flow_control* flow_tbl; /* NEED THIS OR GOING IN INSTANCE??*/
 
 /* ----------------------------------------------------------------------------
  * struct sr_instance
@@ -71,8 +76,29 @@ struct packet_state
 	char *interface;		/* interface at which the packet was received */
 	uint8_t *response;		/* the response packet (ethernet header included) */
 	unsigned int res_len;	/* the length of the response packet */
+	struct sr_rt *rt_entry;
 };
 
+struct packet_buffer
+{
+	uint8_t* packet;
+	struct in_addr ip_dst;
+	time_t entry_time; /* the time at which the last ARP request for this packet 
+							was sent, fill with time(NULL) */
+	struct packet_buffer *next;
+	int num_arp_reqs; 	/* The number of arp requests already sent. */
+};
+
+/* KEEPING THIS OR GOING IN INSTANCE?? */
+struct flow_control
+{
+	struct in_addr src_ip;
+	struct in_addr dst_ip;
+	int ip_p; 				/*The IP protocol */
+	char *src_port;
+	char *dst_port;
+	struct flow_control* next;
+};
 
 /* -- sr_main.c -- */
 int sr_verify_routing_table(struct sr_instance* sr);
@@ -87,7 +113,7 @@ void sr_init(struct sr_instance* );
 void sr_handlepacket(struct sr_instance* , uint8_t * , unsigned int , char* );
 void handle_ip(struct packet_state *);
 void update_ip_hdr(struct ip*);
-void get_routing_if(struct sr_instance *, struct sr_rt *, struct ip *);
+void get_routing_if(struct packet_state*, struct in_addr);
 void leave_hdr_room(struct packet_state *, int);
 int create_eth_hdr(uint8_t *, struct packet_state *, char *);
 
