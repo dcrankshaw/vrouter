@@ -12,6 +12,7 @@
 #include "sr_protocol.h"
 #include "arp.h"
 
+
 struct arp_cache_entry* handle_ARP(struct packet_state * ps, struct sr_ethernet_hdr* eth)
 {
   struct sr_arphdr *arp =0;
@@ -43,7 +44,7 @@ struct arp_cache_entry* handle_ARP(struct packet_state * ps, struct sr_ethernet_
 	}
 	return NULL;
 }
-
+}
 void got_Request(struct packet_state * ps, struct sr_arphdr * arp_hdr, const struct sr_ethernet_hdr* eth)
 {
 	assert(ps);
@@ -237,8 +238,7 @@ void print_cache_entry(struct arp_cache_entry * ent)
 }
 
 //HAS NOT BEEN TESTED
-void construct_reply(struct packet_state* ps, const struct sr_arphdr* arp_hdr, 
-					const unsigned char* mac, const struct sr_ethernet_hdr* eth)
+void construct_reply(struct packet_state* ps, const struct sr_arphdr* arp_hdr, const unsigned char* mac, const struct sr_ethernet_hdr* eth)
 {
 	struct sr_arphdr *reply;
 	reply = (struct sr_arphdr*)malloc(sizeof(struct sr_arphdr));
