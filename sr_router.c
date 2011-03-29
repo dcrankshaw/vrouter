@@ -215,8 +215,49 @@ void update_buffer()
 }
 
 /* MADDIE */
-struct packet_buffer *buf_packet(struct packet_state *ps)
+struct packet_buffer *buf_packet(struct packet_state *ps, uint8_t* pac, const struct in_addr dest_ip)
 {
+	struct packet_buffer* buf_walker=0;
+	
+	assert(ps);
+	assert(pac);
+	
+	if(ps->sr->queue==0)
+	{
+		ps->sr->queue=(struct packet_buffer*)malloc(sizeof(struct packet_buffer));
+		assert(ps->sr->queue);
+		ps->sr->queue->next=0;
+		
+		ps->sr->queue->packet=pac;
+		ps->sr->queue->pack_len=sizeof(ps->sr->queue->packet);
+		ps->sr->queue->interface= "eth0"; /*What is interface supposed to be?? Source?? -MS"*/
+		//ps->sr->queue->sr=ps->sr; /*We don't need this right?? -MS"*/
+		ps->sr->queue->ip_dst=dest_ip;
+		//TIME when sent
+		ps->sr->queue->num_arp_reqs=0;
+	}
+	else
+	{
+		buf_walker=ps->sr->queue;
+		while(buf_walker->next)
+		{
+			buf_walker=buf_walker->next;
+		}
+		buf_walker->next=(struct packet_buffer*)malloc(sizeof(struct packet_buffer));
+		assert(buf_walker->next);
+		buf_walker=buf_walker->next;
+		ps->sr->queue->next=0;
+		
+		ps->sr->queue->packet=pac;
+		ps->sr->queue->pack_len=sizeof(ps->sr->queue->packet);
+		ps->sr->queue->interface= "eth0"; /*What is interface supposed to be?? Source?? -MS"*/
+		//ps->sr->queue->sr=ps->sr; /*We don't need this right?? -MS"*/
+		ps->sr->queue->ip_dst=dest_ip;
+		//TIME when sent
+		ps->sr->queue->num_arp_reqs=0;
+	}
+	
+	
 	/*copy packet into buffer */
 	/*go through same process as add to ARP cache
 	return the pointer to the new buffer entry */

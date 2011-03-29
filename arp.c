@@ -127,9 +127,9 @@ void add_cache_entry(struct packet_state* ps,const uint32_t ip, const unsigned c
 		assert(ps->sr->arp_cache);
 		ps->sr->arp_cache->next=0;
 		ps->sr->arp_cache->ip_add=ip;
-		memcpy(ps->sr->arp_cache->mac, mac,ETHER_ADDR_LEN);
+		memmove(ps->sr->arp_cache->mac, mac,ETHER_ADDR_LEN);
 		ps->sr->arp_cache->timenotvalid=time(NULL) +15;	/* Each cache entry is valid for 15 seconds */
-		print_cache_entry(ps->sr->arp_cache);
+		print_cache_entry(ps->sr->arp_cache); /*FOR TESTING */
 	}
 	else
 	{
@@ -147,7 +147,7 @@ void add_cache_entry(struct packet_state* ps,const uint32_t ip, const unsigned c
 	assert(cache_walker->next);
 	cache_walker=cache_walker->next;
 	cache_walker->ip_add=ip;
-	memcpy(cache_walker->mac, mac,ETHER_ADDR_LEN);
+	memmove(cache_walker->mac, mac,ETHER_ADDR_LEN);
 	cache_walker->timenotvalid=time(NULL) +15;	/* Each cache entry is valid for 15 seconds */
 	cache_walker->next=0;
 	print_cache(ps->sr);
