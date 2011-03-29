@@ -124,7 +124,7 @@ int create_eth_hdr(uint8_t *, struct packet_state *);
 void update_buffer();
 struct packet_buffer *buf_packet(struct packet_state *);
 void search_buffer(uint32_t);
-uint16_t cksum(uint16_t *, int);
+uint16_t cksum(uint8_t *, int);
 
 /* firewall.c */
 int ft_contains(struct sr_instance *, uint32_t , uint32_t, uint8_t, uint8_t, uint8_t);

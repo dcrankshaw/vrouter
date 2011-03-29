@@ -73,6 +73,7 @@ void sr_handlepacket(struct sr_instance* sr,
     assert(sr);
     assert(packet);
     assert(interface);
+    unsigned int orig_len = len;
 
 /*********************************************************
 Careful about memory allocation issues with incrementing packet
@@ -120,6 +121,26 @@ Careful about memory allocation issues with incrementing packet
 				else
 				{
 					struct sr_ethernet_hdr *temp = (struct sr_ethernet_hdr *) head;
+					/*
+					temp->ether_shost[0] = 0x00;
+					temp->ether_shost[1] = 0x3d;
+					temp->ether_shost[2] = 0x41;
+					temp->ether_shost[3] = 0x82;
+					temp->ether_shost[4] = 0x83;
+					temp->ether_shost[5] = 0x7a;
+					temp->ether_dhost[0] = 0xff;
+					temp->ether_dhost[1] = 0xff;
+					temp->ether_dhost[2] = 0xff;
+					temp->ether_dhost[3] = 0xff;
+					temp->ether_dhost[4] = 0xff;
+					temp->ether_dhost[5] = 0xff;
+					temp->ether_type = htons(ETHERTYPE_IP);
+					printf("\n\nres_len%u\n\n", current.res_len);
+					char *if1 = "eth1";
+					sr_send_packet(sr, head, orig_len, if1);
+					test_ip_gen(head, current.res_len, interface);
+					*/
+					
 					memmove(temp->ether_dhost, eth->ether_shost, ETHER_ADDR_LEN);
 					temp->ether_shost[0] = 0x00;
 					temp->ether_shost[1] = 0xd8;
@@ -128,9 +149,12 @@ Careful about memory allocation issues with incrementing packet
 					temp->ether_shost[4] = 0x1f;
 					temp->ether_shost[5] = 0x5b;
 					temp->ether_type = htons(ETHERTYPE_IP);
+					
 					printf("\n\nres_len%u\n\n", current.res_len);
 					sr_send_packet(sr, head, current.res_len, interface);
 					test_ip_gen(head, current.res_len, interface);
+					
+					
 				}
 				break;
 
@@ -178,6 +202,8 @@ int test_ip_gen(uint8_t *packet, unsigned int len, char *interface)
 	inet_ntop(AF_INET, &temporary, dest_address, (INET_ADDRSTRLEN+1)*sizeof(char));
 	temporary = ip_hdr->ip_src.s_addr;
 	inet_ntop(AF_INET, &temporary, current_address, (INET_ADDRSTRLEN+1)*sizeof(char));
+	free(current_address);
+	free(dest_address);
 	
 	printf("\n\nICMP HEADER:\ntype: %u, code %u, sum: %u\n\n\n", icmp->icmp_type, icmp->icmp_code, icmp->icmp_sum);
 	return 0;
@@ -292,9 +318,9 @@ int handle_ip(struct packet_state *ps)
 		char *if1 = "eth1";
 		char *if2 = "eth2";
 		
-		struct in_addr ipdst_host_order;
-		ipdst_host_order.s_addr = ntohl(ip_hdr->ip_dst.s_addr); /*may need to remove ntohl*/
-		get_routing_if(ps, ipdst_host_order);
+		/*struct in_addr ipdst_host_order;
+		ipdst_host_order.s_addr = ntohl(ip_hdr->ip_dst.s_addr);*/ /*may need to remove ntohl*/
+		get_routing_if(ps, ip_hdr->ip_dst);
 		struct ip *iph = (struct ip*)ps->response; /* mark where the ip header should go */
 		
 		printf("section b\n");
@@ -343,7 +369,8 @@ int handle_ip(struct packet_state *ps)
 					/*iph->ip_hl = sizeof(struct ip)/4;*/
 					/*iph->ip_hl = 5;
 					iph->ip_v = 4;*/
-					iph->ip_len = htons(ps->res_len);
+					iph->ip_len = htons(ps->res_len - sizeof(struct sr_ethernet_hdr));
+					/*subtract outer ethernet header wrapping the IP datagram */
 					/*iph->ip_len = ps->res_len;*/
 					iph->ip_ttl = INIT_TTL;
 					iph->ip_tos = ip_hdr->ip_tos;
@@ -351,7 +378,8 @@ int handle_ip(struct packet_state *ps)
 					iph->ip_src = ip_hdr->ip_dst;
 					iph->ip_dst = ip_hdr->ip_src;
 					iph->ip_sum = 0;
-					iph->ip_sum = cksum((uint16_t*) ip_hdr, sizeof(struct ip));
+					iph->ip_sum = cksum((uint8_t *)iph, sizeof(struct ip));
+					iph->ip_sum = htons(iph->ip_sum);
 					break;
 				}
 				else
@@ -370,11 +398,6 @@ int handle_ip(struct packet_state *ps)
 			
 			if(strcmp(ps->interface, if0) == 0)
 			{
-				/* 
-				&^%*&*&%&^%&%&^%&^%*%*%^&%&^%&%&*^%&^
-				BUS ERROR 
-				&*^&*%#%^%^$%(*&*(&))(*(&*^%^$%#$@$&%
-				*/
 				if(strcmp(&ps->rt_entry->interface[0], if1) == 0 
 					|| strcmp(&ps->rt_entry->interface[0], if2) == 0)
 				{
@@ -399,7 +422,9 @@ int handle_ip(struct packet_state *ps)
 							memmove(&dst_port, (ps->packet + 2), 2);
 							if(ft_contains(ps->sr, ntohl(ip_hdr->ip_src.s_addr),
 							ntohl(ip_hdr->ip_dst.s_addr), ip_hdr->ip_p, src_port, dst_port) == 0)
-							{ return 0; }
+							{
+								return 0;
+							}
 						}
 						else { return 0; }
 					}
@@ -448,7 +473,7 @@ int handle_ip(struct packet_state *ps)
 			else /* FORWARD */
 			{
 				update_ip_hdr(ip_hdr);
-				memmove(ps->response, ps->packet, ps->len); /*TODO: double check that this is right */
+				memmove(iph, ip_hdr, ps->len); /*TODO: double check that this is right */
 				ps->forward = 1;
 			}
 		}
@@ -465,22 +490,51 @@ void leave_hdr_room(struct packet_state *ps, int hdr_size)
 }
 
 /*adapted from: http://web.eecs.utk.edu/~cs594np/unp/checksum.html */
-uint16_t cksum(uint16_t *ip_hdr, int len)
+uint16_t cksum(uint8_t *buff, int len)
 {
-	uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
+	uint16_t word16;
+	uint32_t sum = 0;
+	uint16_t i;
+	
+	for(i = 0; i < len; i++)
+	{
+		printf("%x  ", buff[i]);
+		if(i%10 == 0)
+		{
+			printf("\n");
+		}
+	}
+	
+	for(i = 0; i < len; i = i + 2)
+	{
+		word16 = ((buff[i]<<8) & 0xff00) + (buff[i+1] & 0xff);
+		sum = sum + (uint32_t) word16;
+	}
+	
+	while(sum>>16)
+	{
+		sum = (sum & 0xffff) + (sum >> 16);
+	}
+	
+	sum = ~sum;
+	printf("\n\n\nSum: %x\nLen: %d\n\n", sum, len);
+	return ((uint16_t) sum);
+
+	
+	/*uint32_t sum = 0;  
 	uint16_t answer = 0;
 	printf("%d\n", len);
 
 	while(len > 1)
 	{
 	 sum += *(ip_hdr)++;
-	 if(sum & 0x80000000)   /* if high order bit set, fold */
+	 if(sum & 0x80000000)   
 	   	sum = (sum & 0xFFFF) + (sum >> 16);
 	 	len -= 2;
 	 	printf("%d\n", len);
 	}
 	
-	if(len)       /* take care of left over byte */
+	if(len)      
 	{
 		sum += (uint16_t) *(uint8_t *)ip_hdr;
 	}
@@ -490,7 +544,7 @@ uint16_t cksum(uint16_t *ip_hdr, int len)
 	}
 	
 	answer = (uint16_t) ~sum;
-	return answer;
+	return answer;*/
 
 }
 
@@ -498,20 +552,20 @@ void update_ip_hdr(struct ip *ip_hdr)
 {
 	ip_hdr->ip_ttl--;
 	ip_hdr->ip_sum = 0;
-	int len = ip_hdr->ip_hl * 4;	/* 4 bytes per 32 word */
-	ip_hdr->ip_sum = cksum((uint16_t *)ip_hdr, len);
+	ip_hdr->ip_sum = cksum((uint8_t *) ip_hdr, sizeof(struct ip));
 }
 
 /*METHOD: Get the correct entry in the routing table*/
 void get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
-{
+{	
 	struct sr_rt *current = ps->sr->routing_table;
 	struct in_addr min_mask;
-	min_mask.s_addr = -1;
+	min_mask.s_addr = 0;
 	/*Iterate through routing table linked list*/
 	while(current != NULL)
 	{
-		/*If the bitwise AND of current ip and sought ip is greater than the current mask*/
+		/*If the bitwise AND of current mask and sought ip is equal to the current mask*/
+		
 		if((current->mask.s_addr & ip_dst.s_addr) == current->dest.s_addr)
 		{
 			/*And if this is the closest fitting match so far
@@ -522,6 +576,7 @@ void get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
 				/*update the best fitting mask to the current one, and point found to current*/
 				ps->rt_entry=current;
 				min_mask=ps->rt_entry->mask;
+				
 			}
 		}
 		current = current->next;
@@ -531,11 +586,11 @@ void get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
 /*Temporary implementations of firewall functions for the compiler */
 int ft_contains(struct sr_instance *a, uint32_t b, uint32_t c, uint8_t d, uint8_t f, uint8_t e)
 {
-	return -1;
+	return 1;
 }
 int sr_add_ft_entry(struct sr_instance *a, uint32_t b, uint32_t c, uint8_t d, uint8_t e, uint8_t f)
 {
-	return -1;
+	return 1;
 }
 
 
