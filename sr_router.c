@@ -24,8 +24,6 @@
 #include "icmp.h"
 #include "arp.h"
 
-struct packet_buffer* queue;
-struct flow_control *flow_tbl; /*Here or in init??*/
 
 
 /*--------------------------------------------------------------------- 
@@ -42,8 +40,8 @@ void sr_init(struct sr_instance* sr)
 
     /* Add initialization code here! */
 	sr->arp_cache=0;
-	queue=0;
-	flow_tbl=0;
+	sr->queue=0;
+	sr->flow_tbl=0;
 
 } /* -- sr_init -- */
 
@@ -88,6 +86,7 @@ Careful about memory allocation issues with incrementing packet
 	current.len = len;
 	current.rt_entry = 0;
 	current.interface = interface;
+	current.forward = 0;
 	uint8_t *head = (uint8_t *)malloc(MAX_PAC_LENGTH);
 	if(head == NULL)
 	{
@@ -114,12 +113,10 @@ Careful about memory allocation issues with incrementing packet
 			case (ETHERTYPE_IP):
 				printf("GOT an IP packet");
 				handle_ip(&current);
-				char *out_iface = (char *)malloc(IF_LEN +1); /*plus 1 for null termination*/
-				if(create_eth_hdr(head, &current, out_iface) > 0)
+				if(create_eth_hdr(head, &current) > 0)
 				{
-					sr_send_packet(sr, head, current.res_len, out_iface);
+					sr_send_packet(sr, head, current.res_len, current.rt_entry->interface);
 				}
-				free(out_iface);
 				break;
 
 			case (ETHERTYPE_ARP):
@@ -129,17 +126,64 @@ Careful about memory allocation issues with incrementing packet
 				{
 					sr_send_packet(sr, head, current.res_len, interface);
 				}
+				else
+				{
+					search_buffer(new_entry->ip_add);
+				}
 				break;
 			default:
 				printf("%x", eth->ether_type);
 		}
 	}
+	update_buffer();
 
 	free(head);
     
 }/* end sr_ForwardPacket */
 
-int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, char *iface)
+/*Maddie*/
+void search_buffer(uint32_t dest_ip)
+{
+	printf("Unimplemented");
+}
+
+/* MADDIE */
+void update_buffer()
+{
+	/*while(next_entry != null)
+	{
+		if(check cache for ip address)
+		{
+			send packet;
+			return;
+		}
+		else if(num_arp_requests >= 5)
+		{
+			remove from buffer;
+			send icmp_port_unreachable;
+		}
+		else
+		{
+			num_arp_requests++;
+			send_packet(buffered_arp_request);
+		}*/
+		printf("Unimplemented");
+	
+}
+
+/* MADDIE */
+struct packet_buffer *buf_packet(struct packet_state *ps)
+{
+	/*copy packet into buffer */
+	/*go through same process as add to ARP cache
+	return the pointer to the new buffer entry */
+	ps->res_len = 0;
+	return NULL;
+}
+
+
+
+int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps)
 {
 
 	/*check ARP cache to see if the MAC address for the outgoing IP address is there*/
@@ -151,9 +195,33 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, char *iface)
 
 	/*when buffering packet, memmove() the packet to the buffer, then maddie can use the
 	response field in packet_state to build her arp_request*/
-	printf("Ethernet header creation unimplemented at this time");
-	return -1;
+	
+	struct ip *new_iphdr = (struct ip*)(newpacket+sizeof(struct sr_ethernet_hdr));
+	
+	struct arp_cache_entry *ent = search_cache(ps, new_iphdr->ip_dst.s_addr);
+	if(ent != NULL)
+	{
+		struct sr_ethernet_hdr *eth = (struct sr_ethernet_hdr *) newpacket;
+		memmove(eth->ether_dhost, ent->mac, ETHER_ADDR_LEN);
+		struct sr_if *sif = sr_get_interface(ps->sr, ps->rt_entry->interface);
+		memmove(eth->ether_shost, sif->addr, ETHER_ADDR_LEN);
+		eth->ether_type = htons(ETHERTYPE_IP);
+		return 1;
+	}
+	else
+	{
+		ps->response = newpacket;
+		struct packet_buffer* current = buf_packet(ps);
+		send_request(ps);
+		memmove(current->arp_req, ps->response, ps->res_len);
+		current->arp_len = ps->res_len;
+		sr_send_packet(ps->sr, ps->response, ps->res_len, ps->rt_entry->interface);
+		return 0;
+	}
+	return 0;
 }
+
+
 
 int handle_ip(struct packet_state *ps)
 {
@@ -198,9 +266,9 @@ int handle_ip(struct packet_state *ps)
 			while(iface != NULL)
 			{
 				
-				inet_ntop(AF_INET, &iface->ip, current_address, (INET_ADDRSTRLEN+1));
+				inet_ntop(AF_INET, &iface->ip, current_address, (INET_ADDRSTRLEN+1)*sizeof(char));
 				uint32_t temporary = ip_hdr->ip_dst.s_addr;
-				inet_ntop(AF_INET, &temporary, dest_address, (INET_ADDRSTRLEN+1));
+				inet_ntop(AF_INET, &temporary, dest_address, (INET_ADDRSTRLEN+1)*sizeof(char));
 				printf("current address: %s\n\
 						destination address: %s\n", current_address, dest_address);
 				/* TODO: This will need rigorous testing */
@@ -228,7 +296,7 @@ int handle_ip(struct packet_state *ps)
 					}
 					/* TODO: create the IP header */
 					ip_hdr->ip_len = htons(ps->response - iph_start);
-					// ip_hdr->ip_ttl = INI_TTL; /*WHAT IS INI_TTL AND WHERE DEFINED?*/
+					ip_hdr->ip_ttl = INIT_TTL;
 					ip_hdr->ip_p = IPPROTO_ICMP;
 					struct in_addr temp = ip_hdr->ip_src;
 					ip_hdr->ip_src = ip_hdr->ip_dst;
@@ -320,17 +388,18 @@ int handle_ip(struct packet_state *ps)
 					else { return 0; }
 			}
 			
-				if(ip_hdr->ip_ttl < 1)
-				{
-					/*packet expired*/
-					icmp_response(ps, ip_hdr, ICMPT_TIMEEX, ICMPC_INTRANSIT);
-				}
-				else /* FORWARD */
-				{
-					update_ip_hdr(ip_hdr);
-				}
+			if(ip_hdr->ip_ttl < 1)
+			{
+				/*packet expired*/
+				icmp_response(ps, ip_hdr, ICMPT_TIMEEX, ICMPC_INTRANSIT);
+			}
+			else /* FORWARD */
+			{
+				update_ip_hdr(ip_hdr);
+				ps->forward = 1;
 			}
 		}
+	}
 	return 1;
 }
 
@@ -339,18 +408,24 @@ void leave_hdr_room(struct packet_state *ps, int hdr_size)
 	ps->packet += hdr_size;
 	ps->len -= hdr_size;
 	ps->response += hdr_size;
-	//ps->res_len += hdr_size; 	/*I DON'T THINK WE WANT TO DO THIS*/
+	ps->res_len += hdr_size; 	/*I DON'T THINK WE WANT TO DO THIS*/
+}
+
+/*adapted from: http://web.eecs.utk.edu/~cs594np/unp/checksum.html */
+uint16_t cksum(uint8_t *ip_hdr, int len)
+{
+	long sum = 0;  /* assume 32 bit long, 16 bit short */
+	
+	return ~sum;
+
 }
 
 void update_ip_hdr(struct ip *ip_hdr)
 {
 	ip_hdr->ip_ttl--;
-	uint16_t temp = ntohs(ip_hdr->ip_sum);
-	temp += -1;
-	ip_hdr->ip_sum = htons(temp);
-
-	/*The change in ip_ttl was -1 so we subtract 1 (see RFC 1071.2.4). Because it was
-	subtraction, there can be no overflow*/
+	ip_hdr->ip_sum = 0;
+	int len = ip_hdr->ip_hl * 4;	/* 4 bytes per 32 word */
+	ip_hdr->ip_sum = cksum(ip_hdr, len);
 }
 
 /*METHOD: Get the correct entry in the routing table*/

@@ -9,7 +9,7 @@
 /* -- icmp.c --*/
 void handle_icmp(struct packet_state *, struct ip *);
 void icmp_response(struct packet_state *, struct ip *, unsigned int, unsigned int);
-void create_icmp_hdr(struct packet_state *, unsigned int, unsigned int);
+struct icmp_hdr* create_icmp_hdr(struct packet_state *, unsigned int, unsigned int);
 void create_icmp_data(struct packet_state *, struct ip *);
 
 

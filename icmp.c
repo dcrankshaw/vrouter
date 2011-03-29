@@ -54,21 +54,30 @@ void handle_icmp(struct packet_state *ps, struct ip *ip_hdr)
 
 void icmp_response(struct packet_state *ps, struct ip *ip_hdr, unsigned int type, unsigned int code)
 {
-
+	
+	struct icmp_hdr *res_head = NULL;
+	int len = 0;
 	switch(type)
 	{
 		case ICMPT_ECHOREPLY:
-			create_icmp_hdr(ps, type, code);
+			res_head = create_icmp_hdr(ps, type, code);
+			len = ps->res_len - sizeof(struct sr_ethernet_hdr) - sizeof(struct ip);
+			res_head->icmp_sum = cksum((uint8_t *) res_head, len);
+			
 			break;
 
 		case ICMPT_DESTUN:
-			create_icmp_hdr(ps, type, code);
+			res_head = create_icmp_hdr(ps, type, code);
 			create_icmp_data(ps, ip_hdr);
+			len = ps->res_len - sizeof(struct sr_ethernet_hdr) - sizeof(struct ip);
+			res_head->icmp_sum = cksum((uint8_t *) res_head, len);
 			break;
 
 		case ICMPT_TIMEEX:
-			create_icmp_hdr(ps, type, code);
+			res_head = create_icmp_hdr(ps, type, code);
 			create_icmp_data(ps, ip_hdr);
+			len = ps->res_len - sizeof(struct sr_ethernet_hdr) - sizeof(struct ip);
+			res_head->icmp_sum = cksum((uint8_t *) res_head, len);
 			break;
 
 		case ICMPT_TRACERT:
@@ -80,7 +89,6 @@ void icmp_response(struct packet_state *ps, struct ip *ip_hdr, unsigned int type
 			break;
 	}
 
-	printf("icmp_response() currently unimplemented");
 }
 
 
@@ -115,7 +123,7 @@ void create_icmp_data(struct packet_state *ps, struct ip* ip_hdr)
 }
 
 
-void create_icmp_hdr(struct packet_state *ps, unsigned int type, unsigned int code)
+struct icmp_hdr* create_icmp_hdr(struct packet_state *ps, unsigned int type, unsigned int code)
 {
 	struct icmp_hdr *res_head = (struct icmp_hdr *)ps->response;
 	res_head->icmp_type = type;
@@ -125,5 +133,6 @@ void create_icmp_hdr(struct packet_state *ps, unsigned int type, unsigned int co
 	res_head->opt2 = 0;
 	ps->res_len += sizeof(struct icmp_hdr);
 	ps->response += sizeof(struct icmp_hdr);
-	/* comp_checksum(); */
+	res_head->icmp_sum = 0;
+	return res_head;
 }

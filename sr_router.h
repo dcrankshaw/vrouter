@@ -35,9 +35,6 @@
 struct sr_if;
 struct sr_rt;
 
-extern struct packet_buffer *queue;
-extern struct flow_control* flow_tbl; /* NEED THIS OR GOING IN INSTANCE??*/
-
 /* ----------------------------------------------------------------------------
  * struct sr_instance
  *
@@ -58,6 +55,8 @@ struct sr_instance
     struct sr_rt* routing_table; /* routing table */
     FILE* logfile;
     struct arp_cache_entry* arp_cache;
+    struct packet_buffer* queue;
+    struct flow_control *flow_tbl;
 };
 
 /* -----------------------------------------------------------------------
@@ -77,11 +76,17 @@ struct packet_state
 	uint8_t *response;		/* the response packet (ethernet header included) */
 	unsigned int res_len;	/* the length of the response packet */
 	struct sr_rt *rt_entry;
+	short forward;			/* 1 if forwarding, 0 if return to sender */
 };
 
 struct packet_buffer
 {
 	uint8_t* packet;
+	uint16_t pack_len;
+	char *interface;
+	struct instance *sr;
+	uint8_t* arp_req;
+	uint16_t arp_len;
 	struct in_addr ip_dst;
 	time_t entry_time; /* the time at which the last ARP request for this packet 
 							was sent, fill with time(NULL) */
@@ -115,7 +120,10 @@ int handle_ip(struct packet_state *);
 void update_ip_hdr(struct ip*);
 void get_routing_if(struct packet_state*, struct in_addr);
 void leave_hdr_room(struct packet_state *, int);
-int create_eth_hdr(uint8_t *, struct packet_state *, char *);
+int create_eth_hdr(uint8_t *, struct packet_state *);
+void update_buffer();
+struct packet_buffer *buf_packet(struct packet_state *);
+void search_buffer(uint32_t);
 
 /* firewall.c */
 int ft_contains(struct sr_instance *, uint32_t , uint32_t, uint8_t, uint8_t, uint8_t);

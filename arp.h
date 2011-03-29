@@ -12,10 +12,10 @@
 
 struct arp_cache_entry
 {
-uint32_t ip_add; 
-unsigned char mac[ETHER_ADDR_LEN];
-time_t timenotvalid; /*The time when this entry is no longer valid*/
-struct arp_cache_entry* next;
+	uint32_t ip_add; 
+	unsigned char mac[ETHER_ADDR_LEN];
+	time_t timenotvalid; /*The time when this entry is no longer valid*/
+	struct arp_cache_entry* next;
 };
 
 

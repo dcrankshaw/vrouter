@@ -115,7 +115,7 @@ struct sr_ethernet_hdr
     uint8_t  ether_dhost[ETHER_ADDR_LEN];    /* destination ethernet address */
     uint8_t  ether_shost[ETHER_ADDR_LEN];    /* source ethernet address */
     uint16_t ether_type;                     /* packet type ID */
-} __attribute__ ((packed)) ;
+} __attribute__ ((packed));
 
 #ifndef ARPHDR_ETHER
 #define ARPHDR_ETHER    1
