@@ -23,6 +23,7 @@
 #include "sr_protocol.h"
 #include "icmp.h"
 #include "arp.h"
+#include "buffer.h"
 
 
 
@@ -149,9 +150,9 @@ Careful about memory allocation issues with incrementing packet
 			default:
 				printf("%x", eth->ether_type);
 		}
+		
 	}
-	update_buffer();
-
+	//update_buffer();
 	free(head);
     
 }/* end sr_ForwardPacket */
@@ -183,107 +184,6 @@ int test_ip_gen(uint8_t *packet, unsigned int len, char *interface)
 	return 0;
 }
 
-
-/*Maddie*/
-struct packet_buffer* search_buffer(struct packet_state* ps,const uint32_t dest_ip)
-{
-	struct packet_buffer* buf_walker=0;
-	buf_walker=ps->sr->queue;
-	/*
-	struct in_addr d_ip;
-	d_ip.s_addr=dest_ip;
-	*/
-	while(buf_walker)
-	{
-	
-		if(buf_walker->ip_dst.s_addr==dest_ip)
-		{
-			return buf_walker;
-		}
-		buf_walker=buf_walker->next;
-	}
-}
-
-/* MADDIE */
-void update_buffer()
-{
-	/*while(next_entry != null)
-	{
-		if(check cache for ip address)
-		{
-			send packet;
-			return;
-		}
-		else if(num_arp_requests >= 5)
-		{
-			remove from buffer;
-			send icmp_port_unreachable;
-		}
-		else
-		{
-			num_arp_requests++;
-			send_packet(buffered_arp_request);
-		}*/
-		printf("Unimplemented");
-	
-}
-/*
-void testing_buffer(struct packet_state * ps)
-{
-	struct packet_buffer* buf=buf_packet(ps, ps->packet, ps->
-
-}
-*/
-/* MADDIE */
-struct packet_buffer *buf_packet(struct packet_state *ps, uint8_t* pac, const struct in_addr dest_ip)
-{
-	struct packet_buffer* buf_walker=0;
-	
-	assert(ps);
-	assert(pac);
-	
-	if(ps->sr->queue==0)
-	{
-		ps->sr->queue=(struct packet_buffer*)malloc(sizeof(struct packet_buffer));
-		assert(ps->sr->queue);
-		ps->sr->queue->next=0;
-		
-		ps->sr->queue->packet=pac;
-		ps->sr->queue->pack_len=sizeof(ps->sr->queue->packet);
-		ps->sr->queue->interface= "eth0"; /*What is interface supposed to be?? Source?? -MS"*/
-		memmove(ps->sr->queue->sr, ps->sr, sizeof(ps->sr));
-		ps->sr->queue->ip_dst=dest_ip;
-		//TIME when sent
-		ps->sr->queue->num_arp_reqs=0;
-	}
-	else
-	{
-		buf_walker=ps->sr->queue;
-		while(buf_walker->next)
-		{
-			buf_walker=buf_walker->next;
-		}
-		buf_walker->next=(struct packet_buffer*)malloc(sizeof(struct packet_buffer));
-		assert(buf_walker->next);
-		buf_walker=buf_walker->next;
-		ps->sr->queue->next=0;
-		
-		ps->sr->queue->packet=pac;
-		ps->sr->queue->pack_len=sizeof(ps->sr->queue->packet);
-		ps->sr->queue->interface= "eth0"; /*What is interface supposed to be?? Source?? -MS"*/
-		//ps->sr->queue->sr=ps->sr; /*We don't need this right?? -MS"*/
-		ps->sr->queue->ip_dst=dest_ip;
-		//TIME when sent
-		ps->sr->queue->num_arp_reqs=0;
-	}
-	
-	
-	/*copy packet into buffer */
-	/*go through same process as add to ARP cache
-	return the pointer to the new buffer entry */
-	ps->res_len = 0;
-	return NULL;
-}
 
 
 

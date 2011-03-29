@@ -79,20 +79,6 @@ struct packet_state
 	short forward;			/* 1 if forwarding, 0 if return to sender */
 };
 
-struct packet_buffer
-{
-	uint8_t* packet;
-	uint16_t pack_len;
-	char *interface;
-	struct instance *sr;
-	uint8_t* arp_req;
-	uint16_t arp_len;
-	struct in_addr ip_dst;
-	time_t entry_time; /* the time at which the last ARP request for this packet 
-							was sent, fill with time(NULL) */
-	struct packet_buffer *next;
-	int num_arp_reqs; 	/* The number of arp requests already sent. */
-};
 
 /* KEEPING THIS OR GOING IN INSTANCE?? */
 struct flow_control
@@ -121,10 +107,8 @@ void update_ip_hdr(struct ip*);
 void get_routing_if(struct packet_state*, struct in_addr);
 void leave_hdr_room(struct packet_state *, int);
 int create_eth_hdr(uint8_t *, struct packet_state *);
-void update_buffer();
-struct packet_buffer *buf_packet(struct packet_state *, uint8_t*, const struct in_addr);
-struct packet_buffer* search_buffer(struct packet_state*,const uint32_t );
 uint16_t cksum(uint16_t *, int);
+int test_ip_gen(uint8_t *, unsigned int , char *);
 
 /* firewall.c */
 int ft_contains(struct sr_instance *, uint32_t , uint32_t, uint8_t, uint8_t, uint8_t);

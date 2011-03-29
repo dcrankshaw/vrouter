@@ -12,10 +12,10 @@
 
 struct arp_cache_entry
 {
-	uint32_t ip_add; 
-	unsigned char mac[ETHER_ADDR_LEN];
-	time_t timenotvalid; /*The time when this entry is no longer valid*/
-	struct arp_cache_entry* next;
+uint32_t ip_add; 
+unsigned char mac[ETHER_ADDR_LEN];
+time_t timenotvalid; /*The time when this entry is no longer valid*/
+struct arp_cache_entry* next;
 };
 
 
@@ -29,6 +29,6 @@ void delete_entry(struct packet_state*,const struct arp_cache_entry* );
 struct arp_cache_entry* search_cache(struct packet_state*,const uint32_t);
 struct arp_cache_entry* got_Reply(struct packet_state *, struct sr_arphdr *, const struct sr_ethernet_hdr*);
 void testing(struct packet_state*, struct sr_arphdr *);
-void send_request(struct packet_state* ps);
+void send_request(struct packet_state*,const struct sr_if * , const uint32_t);
 
 #endif
