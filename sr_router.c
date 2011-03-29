@@ -412,25 +412,30 @@ void leave_hdr_room(struct packet_state *ps, int hdr_size)
 }
 
 /*adapted from: http://web.eecs.utk.edu/~cs594np/unp/checksum.html */
-uint16_t cksum(uint8_t *ip_hdr, int len)
+uint16_t cksum(uint16_t *ip_hdr, int len)
 {
-	long sum = 0;  /* assume 32 bit long, 16 bit short */
+	uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
+	uint16_t answer = 0;
 	
 	while(len > 1)
 	{
-	 sum += *((unsigned short*) ip_hdr)++;
+	 sum += *(ip_hdr)++;
 	 if(sum & 0x80000000)   /* if high order bit set, fold */
-	   sum = (sum & 0xFFFF) + (sum >> 16);
-	 len -= 2;
+	   	sum = (sum & 0xFFFF) + (sum >> 16);
+	 	len -= 2;
 	}
 	
 	if(len)       /* take care of left over byte */
-	 sum += (unsigned short) *(unsigned char *)ip_hdr;
-	
+	{
+		sum += (uint16_t) *(uint8_t *)ip_hdr;
+	}
 	while(sum>>16)
-	 sum = (sum & 0xFFFF) + (sum >> 16);
+	{
+		sum = (sum & 0xFFFF) + (sum >> 16);
+	}
 	
-	return ~sum;
+	answer = (uint16_t) ~sum;
+	return answer;
 
 }
 
@@ -439,7 +444,7 @@ void update_ip_hdr(struct ip *ip_hdr)
 	ip_hdr->ip_ttl--;
 	ip_hdr->ip_sum = 0;
 	int len = ip_hdr->ip_hl * 4;	/* 4 bytes per 32 word */
-	ip_hdr->ip_sum = cksum(ip_hdr, len);
+	ip_hdr->ip_sum = cksum((uint16_t *)ip_hdr, len);
 }
 
 /*METHOD: Get the correct entry in the routing table*/
