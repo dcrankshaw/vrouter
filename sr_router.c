@@ -417,6 +417,7 @@ uint16_t cksum(uint16_t *ip_hdr, int len)
 	uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
 	uint16_t answer = 0;
 	
+
 	while(len > 1)
 	{
 	 sum += *(ip_hdr)++;
