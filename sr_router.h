@@ -123,7 +123,7 @@ void leave_hdr_room(struct packet_state *, int);
 int create_eth_hdr(uint8_t *, struct packet_state *);
 void update_buffer();
 struct packet_buffer *buf_packet(struct packet_state *, uint8_t*, const struct in_addr);
-void search_buffer(uint32_t);
+struct packet_buffer* search_buffer(struct packet_state*,const uint32_t );
 uint16_t cksum(uint16_t *, int);
 
 /* firewall.c */

@@ -143,7 +143,7 @@ Careful about memory allocation issues with incrementing packet
 				}
 				else
 				{
-					search_buffer(new_entry->ip_add);
+					struct packet_buffer* pb=search_buffer(&current, new_entry->ip_add);
 				}
 				break;
 			default:
@@ -185,9 +185,23 @@ int test_ip_gen(uint8_t *packet, unsigned int len, char *interface)
 
 
 /*Maddie*/
-void search_buffer(uint32_t dest_ip)
+struct packet_buffer* search_buffer(struct packet_state* ps,const uint32_t dest_ip)
 {
-	printf("Unimplemented");
+	struct packet_buffer* buf_walker=0;
+	buf_walker=ps->sr->queue;
+	/*
+	struct in_addr d_ip;
+	d_ip.s_addr=dest_ip;
+	*/
+	while(buf_walker)
+	{
+	
+		if(buf_walker->ip_dst.s_addr==dest_ip)
+		{
+			return buf_walker;
+		}
+		buf_walker=buf_walker->next;
+	}
 }
 
 /* MADDIE */
@@ -213,7 +227,13 @@ void update_buffer()
 		printf("Unimplemented");
 	
 }
+/*
+void testing_buffer(struct packet_state * ps)
+{
+	struct packet_buffer* buf=buf_packet(ps, ps->packet, ps->
 
+}
+*/
 /* MADDIE */
 struct packet_buffer *buf_packet(struct packet_state *ps, uint8_t* pac, const struct in_addr dest_ip)
 {
@@ -231,7 +251,7 @@ struct packet_buffer *buf_packet(struct packet_state *ps, uint8_t* pac, const st
 		ps->sr->queue->packet=pac;
 		ps->sr->queue->pack_len=sizeof(ps->sr->queue->packet);
 		ps->sr->queue->interface= "eth0"; /*What is interface supposed to be?? Source?? -MS"*/
-		//ps->sr->queue->sr=ps->sr; /*We don't need this right?? -MS"*/
+		memmove(ps->sr->queue->sr, ps->sr, sizeof(ps->sr));
 		ps->sr->queue->ip_dst=dest_ip;
 		//TIME when sent
 		ps->sr->queue->num_arp_reqs=0;
