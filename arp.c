@@ -46,6 +46,7 @@ struct arp_cache_entry* handle_ARP(struct packet_state * ps, struct sr_ethernet_
 	}
 	return NULL;
 }
+
 void got_Request(struct packet_state * ps, struct sr_arphdr * arp_hdr, const struct sr_ethernet_hdr* eth)
 {
 	assert(ps);
@@ -267,4 +268,9 @@ void construct_reply(struct packet_state* ps, const struct sr_arphdr* arp_hdr, c
 	free(new_eth);
 	ps->res_len=eth_offset + sizeof(struct sr_arphdr);
 	printf("Response was constructed.\n");
+}
+
+void send_request(struct packet_state* ps)
+{
+	printf("TODO: send request -MS");
 }
