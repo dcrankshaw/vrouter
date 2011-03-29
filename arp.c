@@ -177,6 +177,16 @@ void construct_reply(struct packet_state* ps, const struct sr_arphdr* arp_hdr,
 	memmove(ps->response, new_eth, eth_offset);
 	free(reply);
 	free(new_eth);
-	ps->res_len=eth_offset + sizeof(struct sr_arphdr);
+	ps->res_len += sizeof(struct sr_arphdr);
 	printf("Response was constructed.\n");
+}
+
+struct arp_cache_entry* search_cache(struct packet_state* ps, const uint32_t ip)
+{
+	printf("unimplmented");
+	return NULL;
+}
+void send_request(struct packet_state* ps)
+{
+	printf("unimplmented");
 }
