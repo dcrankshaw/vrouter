@@ -91,11 +91,9 @@ Careful about memory allocation issues with incrementing packet
 	if(head == NULL)
 	{
 		printf("Out of memory");
-		
-
 	}
 	current.response = head; /*keep a pointer to the head of allocated memory */
-	current.res_len = MAX_PAC_LENGTH;
+	current.res_len = 0;
     struct sr_ethernet_hdr *eth = 0;
     int eth_offset = sizeof(struct sr_ethernet_hdr);
     
@@ -115,7 +113,24 @@ Careful about memory allocation issues with incrementing packet
 				handle_ip(&current);
 				if(create_eth_hdr(head, &current) > 0)
 				{
+					printf("\n\nres_len%u\n\n", current.res_len);
 					sr_send_packet(sr, head, current.res_len, current.rt_entry->interface);
+				}
+				/*TODO: temporary*/
+				else
+				{
+					struct sr_ethernet_hdr *temp = (struct sr_ethernet_hdr *) head;
+					memmove(temp->ether_dhost, eth->ether_shost, ETHER_ADDR_LEN);
+					temp->ether_shost[0] = 0x00;
+					temp->ether_shost[1] = 0xd8;
+					temp->ether_shost[2] = 0xb3;
+					temp->ether_shost[3] = 0x90;
+					temp->ether_shost[4] = 0x1f;
+					temp->ether_shost[5] = 0x5b;
+					temp->ether_type = htons(ETHERTYPE_IP);
+					printf("\n\nres_len%u\n\n", current.res_len);
+					sr_send_packet(sr, head, current.res_len, interface);
+					test_ip_gen(head, current.res_len, interface);
 				}
 				break;
 
@@ -140,6 +155,34 @@ Careful about memory allocation issues with incrementing packet
 	free(head);
     
 }/* end sr_ForwardPacket */
+
+int test_ip_gen(uint8_t *packet, unsigned int len, char *interface)
+{
+	int hdr_len = sizeof(struct sr_ethernet_hdr) + sizeof(struct ip) + sizeof(struct icmp_hdr);
+	if(len < hdr_len)
+	{
+		printf("packet too short");
+		return 0;
+	}
+	struct sr_ethernet_hdr *eth = (struct sr_ethernet_hdr *) packet;
+	packet += sizeof(struct sr_ethernet_hdr);
+	struct ip *ip_hdr = (struct ip *) packet;
+	packet += sizeof(struct ip);
+	struct icmp_hdr *icmp = (struct icmp_hdr *) packet;
+	printf("hl: %u, version: %u, type: %u, len: %u, id: %u, ttl: %u, prot: %u, sum %u",
+		ip_hdr->ip_hl, ip_hdr->ip_v, ip_hdr->ip_tos, ip_hdr->ip_len, ip_hdr->ip_id,
+		ip_hdr->ip_ttl, ip_hdr->ip_p, ip_hdr->ip_sum);
+	char *current_address = (char *) malloc((INET_ADDRSTRLEN+1)*sizeof(char));
+	char *dest_address = (char *) malloc((INET_ADDRSTRLEN+1)*sizeof(char));
+	uint32_t temporary = ip_hdr->ip_dst.s_addr;
+	inet_ntop(AF_INET, &temporary, dest_address, (INET_ADDRSTRLEN+1)*sizeof(char));
+	temporary = ip_hdr->ip_src.s_addr;
+	inet_ntop(AF_INET, &temporary, current_address, (INET_ADDRSTRLEN+1)*sizeof(char));
+	
+	printf("\n\nICMP HEADER:\ntype: %u, code %u, sum: %u\n\n\n", icmp->icmp_type, icmp->icmp_code, icmp->icmp_sum);
+	return 0;
+}
+
 
 /*Maddie*/
 void search_buffer(uint32_t dest_ip)
@@ -210,12 +253,13 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps)
 	}
 	else
 	{
-		ps->response = newpacket;
+		/*ps->response = newpacket;
 		struct packet_buffer* current = buf_packet(ps);
 		send_request(ps);
 		memmove(current->arp_req, ps->response, ps->res_len);
 		current->arp_len = ps->res_len;
-		sr_send_packet(ps->sr, ps->response, ps->res_len, ps->rt_entry->interface);
+		sr_send_packet(ps->sr, ps->response, ps->res_len, ps->rt_entry->interface);*/
+		printf("no ethernet header\n");
 		return 0;
 	}
 	return 0;
@@ -249,8 +293,9 @@ int handle_ip(struct packet_state *ps)
 		char *if2 = "eth2";
 		
 		struct in_addr ipdst_host_order;
-		ipdst_host_order.s_addr = ntohl(ip_hdr->ip_dst.s_addr);
+		ipdst_host_order.s_addr = ntohl(ip_hdr->ip_dst.s_addr); /*may need to remove ntohl*/
 		get_routing_if(ps, ipdst_host_order);
+		struct ip *iph = (struct ip*)ps->response; /* mark where the ip header should go */
 		
 		printf("section b\n");
 		
@@ -269,8 +314,7 @@ int handle_ip(struct packet_state *ps)
 				inet_ntop(AF_INET, &iface->ip, current_address, (INET_ADDRSTRLEN+1)*sizeof(char));
 				uint32_t temporary = ip_hdr->ip_dst.s_addr;
 				inet_ntop(AF_INET, &temporary, dest_address, (INET_ADDRSTRLEN+1)*sizeof(char));
-				printf("current address: %s\n\
-						destination address: %s\n", current_address, dest_address);
+				printf("current address: %s\n destination address: %s\n", current_address, dest_address);
 				/* TODO: This will need rigorous testing */
 				if(iface->ip == ip_hdr->ip_dst.s_addr)
 				{
@@ -283,7 +327,6 @@ int handle_ip(struct packet_state *ps)
 						{ return -1; /* Dropped packet */ }
 					}
 					found_case = 1;
-					uint8_t *iph_start = ps->response; /* mark where the ip header should go */
 					leave_hdr_room(ps, ip_offset);
 					if(ip_hdr->ip_p == IPPROTO_ICMP)
 					{
@@ -295,18 +338,27 @@ int handle_ip(struct packet_state *ps)
 						icmp_response(ps, ip_hdr, ICMPT_DESTUN, ICMPC_PORTUN);
 					}
 					/* TODO: create the IP header */
-					ip_hdr->ip_len = htons(ps->response - iph_start);
-					ip_hdr->ip_ttl = INIT_TTL;
-					ip_hdr->ip_p = IPPROTO_ICMP;
-					struct in_addr temp = ip_hdr->ip_src;
-					ip_hdr->ip_src = ip_hdr->ip_dst;
-					ip_hdr->ip_dst = temp;
-					/*checksum();*/
+					
+					memmove(iph, ip_hdr, sizeof(struct ip));
+					/*iph->ip_hl = sizeof(struct ip)/4;*/
+					/*iph->ip_hl = 5;
+					iph->ip_v = 4;*/
+					iph->ip_len = htons(ps->res_len);
+					/*iph->ip_len = ps->res_len;*/
+					iph->ip_ttl = INIT_TTL;
+					iph->ip_tos = ip_hdr->ip_tos;
+					iph->ip_p = IPPROTO_ICMP;
+					iph->ip_src = ip_hdr->ip_dst;
+					iph->ip_dst = ip_hdr->ip_src;
+					iph->ip_sum = 0;
+					iph->ip_sum = cksum((uint16_t*) ip_hdr, sizeof(struct ip));
 					break;
 				}
 				else
 				{
+					printf("section c");
 					iface = iface->next;
+					printf("section d");
 				}
 			}
 		}
@@ -396,6 +448,7 @@ int handle_ip(struct packet_state *ps)
 			else /* FORWARD */
 			{
 				update_ip_hdr(ip_hdr);
+				memmove(ps->response, ps->packet, ps->len); /*TODO: double check that this is right */
 				ps->forward = 1;
 			}
 		}
@@ -416,7 +469,7 @@ uint16_t cksum(uint16_t *ip_hdr, int len)
 {
 	uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
 	uint16_t answer = 0;
-	
+	printf("%d\n", len);
 
 	while(len > 1)
 	{
@@ -424,6 +477,7 @@ uint16_t cksum(uint16_t *ip_hdr, int len)
 	 if(sum & 0x80000000)   /* if high order bit set, fold */
 	   	sum = (sum & 0xFFFF) + (sum >> 16);
 	 	len -= 2;
+	 	printf("%d\n", len);
 	}
 	
 	if(len)       /* take care of left over byte */

@@ -158,11 +158,11 @@ struct sr_ethernet_hdr
 #endif
 
 #ifndef IPPROTO_TCP
-#define IPPROTO_TCP            0x0006  /* ICMP protocol */
+#define IPPROTO_TCP            0x0006  /* TCP protocol */
 #endif
 
 #ifndef IPPROTO_UDP
-#define IPPROTO_UDP	           0x0011  /* ICMP protocol */
+#define IPPROTO_UDP	           0x0011  /* UDP protocol */
 #endif
 
 #ifndef ETHERTYPE_IP
