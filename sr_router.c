@@ -118,7 +118,6 @@ Careful about memory allocation issues with incrementing packet
 				handle_ip(&current);
 				if(create_eth_hdr(head, &current, perm_eth) > 0)
 				{
-					printf("\n\nres_len%u\n\n", current.res_len);
 					sr_send_packet(sr, head, current.res_len, current.rt_entry->interface);
 				}
 				/*TODO: temporary*/
@@ -242,9 +241,11 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, struct sr_ethern
 	{
 		assert(ps->rt_entry);
 		sif = sr_get_interface(ps->sr, ps->rt_entry->interface);
+		printf("Interface to leave: %s", sif->name);
 	}
 	else
 	{
+		printf("Not forwarding\n");
 		sif = sr_get_interface(ps->sr, ps->interface);
 		struct sr_ethernet_hdr *eth = (struct sr_ethernet_hdr *) newpacket;
 		memmove(eth->ether_dhost, eth_rec->ether_shost, ETHER_ADDR_LEN);
@@ -267,7 +268,7 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, struct sr_ethern
 		ps->response = newpacket;
 		struct packet_buffer* current = buf_packet(ps,newpacket, new_iphdr->ip_dst,sif);
 		send_request(ps,new_iphdr->ip_dst.s_addr);
-		current->num_arp_req=1;
+		current->num_arp_reqs=1;
 		printf("Formed ARP Request.\n");
 		current->arp_req=(uint8_t*)malloc(ps->res_len);
 		assert(current->arp_req);
@@ -335,12 +336,12 @@ int handle_ip(struct packet_state *ps)
 				{
 					printf("reached sr_router.c, print statement #1");
 					
-					
+					/*
 					if(strcmp(ps->interface, if0) == 0)
 					{
 						if(strcmp(&iface->name[0], if1) == 0 || strcmp(&iface->name[0], if2) == 0)
-						{ return -1; /* Dropped packet */ }
-					}
+						{ return -1; }
+					}*/
 					found_case = 1;
 					leave_hdr_room(ps, ip_offset);
 					if(ip_hdr->ip_p == IPPROTO_ICMP)
@@ -350,7 +351,6 @@ int handle_ip(struct packet_state *ps)
 					}
 					else
 					{
-						printf("IN ELSE BLOCK BEFORE ICMP SENT/n");
 						icmp_response(ps, ip_hdr, ICMPT_DESTUN, ICMPC_PORTUN);
 					}
 					/* TODO: create the IP header */
@@ -385,6 +385,7 @@ int handle_ip(struct packet_state *ps)
 		/*Deals with forwarding*/
 		if(!found_case)
 		{
+			printf("ResLen0: %i\n", ps->res_len);
 			/*check if interface==eth0*/
 			
 			if(strcmp(ps->interface, if0) == 0)
@@ -468,7 +469,12 @@ int handle_ip(struct packet_state *ps)
 				ps->forward = 1;
 			}
 		}
+		else
+		{
+			printf("ResLen1: %i\n", ps->res_len);
+		}
 	}
+	printf("ResLen: %i\n", ps->res_len);
 	return 1;
 }
 
@@ -543,7 +549,7 @@ void update_ip_hdr(struct ip *ip_hdr)
 {
 	ip_hdr->ip_ttl--;
 	ip_hdr->ip_sum = 0;
-	ip_hdr->ip_sum = cksum((uint8_t *) ip_hdr, sizeof(struct ip));
+	ip_hdr->ip_sum = htons(cksum((uint8_t *) ip_hdr, sizeof(struct ip)));
 }
 
 /*METHOD: Get the correct entry in the routing table*/
