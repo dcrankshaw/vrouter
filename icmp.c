@@ -74,7 +74,7 @@ void icmp_response(struct packet_state *ps, struct ip *ip_hdr, unsigned int type
 
 		case ICMPT_DESTUN:
 			res_head = create_icmp_hdr(ps, type, code);
-			printf("IN ICMPT_DESTUN\n");
+			printf("\nIN ICMPT_DESTUN\n");
 			create_icmp_data(ps, ip_hdr);
 			len = ps->res_len - sizeof(struct sr_ethernet_hdr) - sizeof(struct ip);
 			res_head->icmp_sum = 0;
@@ -110,8 +110,6 @@ void create_icmp_data(struct packet_state *ps, struct ip* ip_hdr)
 	}
 	ps->res_len += sizeof(struct ip);
 	ps->response += sizeof(struct ip);
-	printf("\n\nPacket Data Length: %u\n", ps->len);
-	printf("\n\nNeeded Data Length: %u\n", ICMP_DATA_RES);
 	if(ps->len < ICMP_DATA_RES)
 	{
 		if(memcpy(ps->response, ps->packet, ps->len) == 0)

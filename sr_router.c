@@ -124,49 +124,12 @@ Careful about memory allocation issues with incrementing packet
 		{
 			case (ETHERTYPE_IP):
 				printf("GOT an IP packet\n");
-				handle_ip(&current);
-				if(create_eth_hdr(head, &current, perm_eth) > 0)
+				if(handle_ip(&current) != 0)
 				{
-					sr_send_packet(sr, head, current.res_len, current.rt_entry->interface);
-				}
-				/*TODO: temporary*/
-				else
-				{
-					/*struct sr_ethernet_hdr *temp = (struct sr_ethernet_hdr *) head;
-					
-					temp->ether_shost[0] = 0x00;
-					temp->ether_shost[1] = 0x3d;
-					temp->ether_shost[2] = 0x41;
-					temp->ether_shost[3] = 0x82;
-					temp->ether_shost[4] = 0x83;
-					temp->ether_shost[5] = 0x7a;
-					temp->ether_dhost[0] = 0xff;
-					temp->ether_dhost[1] = 0xff;
-					temp->ether_dhost[2] = 0xff;
-					temp->ether_dhost[3] = 0xff;
-					temp->ether_dhost[4] = 0xff;
-					temp->ether_dhost[5] = 0xff;
-					temp->ether_type = htons(ETHERTYPE_IP);
-					printf("\n\nres_len%u\n\n", current.res_len);
-					char *if1 = "eth1";
-					sr_send_packet(sr, head, orig_len, if1);
-					test_ip_gen(head, current.res_len, interface);
-					*/
-					
-					/*memmove(temp->ether_dhost, eth->ether_shost, ETHER_ADDR_LEN);
-					temp->ether_shost[0] = 0x00;
-					temp->ether_shost[1] = 0xd8;
-					temp->ether_shost[2] = 0xb3;
-					temp->ether_shost[3] = 0x90;
-					temp->ether_shost[4] = 0x1f;
-					temp->ether_shost[5] = 0x5b;
-					temp->ether_type = htons(ETHERTYPE_IP);
-					
-					printf("\n\nres_len%u\n\n", current.res_len);
-					sr_send_packet(sr, head, current.res_len, interface);
-					test_ip_gen(head, current.res_len, interface);*/
-					
-					
+					if(create_eth_hdr(head, &current, perm_eth) > 0)
+					{
+						sr_send_packet(sr, head, current.res_len, current.rt_entry->interface);
+					}
 				}
 				break;
 
@@ -275,8 +238,8 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, struct sr_ethern
 		ps->response = newpacket;
 		struct packet_buffer* current = buf_packet(ps,newpacket, new_iphdr->ip_dst,sif);
 		ps->response = newpacket;
-		send_request(ps,new_iphdr->ip_dst.s_addr);
-		current->num_arp_reqs=1;
+		/*send_request(ps,new_iphdr->ip_dst.s_addr);*/
+		/*current->num_arp_reqs=1;*/
 		current->arp_req=(uint8_t*)malloc(ps->res_len);
 		assert(current->arp_req);
 		memmove(current->arp_req, ps->response, ps->res_len);
@@ -299,6 +262,7 @@ int handle_ip(struct packet_state *ps)
 	if(ps->len < sizeof(struct ip))
 	{
 		printf("malformed IP packet");
+		return 0;
 		/*TODO: send an icmp malformed packet message to 
 		the source host from the ethernet header?????*/
 	}

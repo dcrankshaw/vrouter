@@ -91,7 +91,7 @@ int init_rules_table(struct sr_instance* sr, const char* filename)
       return 0;
     }
 
- fp = fopen(filename,"r");
+fp = fopen(filename,"r");
 	
  while(fgets(line,BUFSIZ,fp) != 0)
 	{
@@ -110,7 +110,7 @@ int init_rules_table(struct sr_instance* sr, const char* filename)
 	}
   return 1;
 	
-}
+
 
 void print_rules(struct sr_instance* sr)
 {
