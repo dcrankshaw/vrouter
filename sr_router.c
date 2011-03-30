@@ -464,8 +464,9 @@ void update_ip_hdr(struct ip *ip_hdr)
 }
 
 /*METHOD: Get the correct entry in the routing table*/
-void get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
+struct sr_rt* get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
 {
+	struct sr_rt* response= NULL;
 	struct sr_rt *current = ps->sr->routing_table;
 	struct in_addr min_mask;
 	min_mask.s_addr = -1;
@@ -481,12 +482,13 @@ void get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
 			if(min_mask.s_addr <= current->mask.s_addr)
 			{
 				/*update the best fitting mask to the current one, and point found to current*/
-				ps->rt_entry=current;
 				min_mask=ps->rt_entry->mask;
+				response=current;
 			}
 		}
 		current = current->next;
 	}
+	return response;
 }
 
 /*Temporary implementations of firewall functions for the compiler */

@@ -288,7 +288,7 @@ void construct_reply(struct packet_state* ps, const struct sr_arphdr* arp_hdr, c
 	printf("Response was constructed.\n");
 }
 
-void send_request(struct packet_state* ps,const struct sr_if* iface, const uint32_t dest_ip)
+void send_request(struct packet_state* ps, const uint32_t dest_ip)
 {
 	//Construct arp header
 	struct sr_arphdr* request;
@@ -298,7 +298,12 @@ void send_request(struct packet_state* ps,const struct sr_if* iface, const uint3
 	request->ar_hln=ETHER_ADDR_LEN;
 	request->ar_pln=ARP_IP_LEN;
 	request->ar_op=htons(ARP_REQUEST);
+	
 	/* figure out which interface to send from */
+	struct in_addr ip_d;
+	ip_d.s_addr=dest_ip;
+	struct sr_rt* iface_rt_entry=get_routing_if(ps, ip_d);
+	struct sr_if* iface=sr_get_interface(ps->sr, iface_rt_entry->interface);
 	memmove(request->ar_sha, iface->addr, ETHER_ADDR_LEN);
 	request->ar_sip=iface->ip;
 	memmove(request->ar_tha,"000000",ETHER_ADDR_LEN);
