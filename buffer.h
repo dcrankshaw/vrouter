@@ -37,5 +37,6 @@ struct packet_buffer
 void update_buffer(struct packet_state*,struct packet_buffer*);
 struct packet_buffer *buf_packet(struct packet_state *, uint8_t*, const struct in_addr, const struct sr_if*);
 struct packet_buffer* search_buffer(struct packet_state*,const uint32_t );
+void delete_from_buffer(struct packet_state*, struct packet_buffer*);
 
 #endif

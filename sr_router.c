@@ -267,7 +267,7 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, struct sr_ethern
 		ps->response = newpacket;
 		struct packet_buffer* current = buf_packet(ps,newpacket, new_iphdr->ip_dst,sif);
 		send_request(ps,new_iphdr->ip_dst.s_addr);
-		current->num_arp_req=1;
+		current->num_arp_reqs=1;
 		printf("Formed ARP Request.\n");
 		current->arp_req=(uint8_t*)malloc(ps->res_len);
 		assert(current->arp_req);

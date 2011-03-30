@@ -67,7 +67,7 @@ void icmp_response(struct packet_state *ps, struct ip *ip_hdr, unsigned int type
 			copy_echo_data(ps);
 			len = ps->res_len - sizeof(struct sr_ethernet_hdr) - sizeof(struct ip);
 			res_head->icmp_sum = 0;
-			res_head->icmp_sum = cksum((uint8_t *) res_head, len);
+			res_head->icmp_sum = ntohs(cksum((uint8_t *) res_head, len));
 			
 			
 			break;
@@ -78,7 +78,7 @@ void icmp_response(struct packet_state *ps, struct ip *ip_hdr, unsigned int type
 			create_icmp_data(ps, ip_hdr);
 			len = ps->res_len - sizeof(struct sr_ethernet_hdr) - sizeof(struct ip);
 			res_head->icmp_sum = 0;
-			res_head->icmp_sum = cksum((uint8_t *)res_head, len);
+			res_head->icmp_sum = ntohs(cksum((uint8_t *)res_head, len));
 			break;
 
 		case ICMPT_TIMEEX:
@@ -86,7 +86,7 @@ void icmp_response(struct packet_state *ps, struct ip *ip_hdr, unsigned int type
 			create_icmp_data(ps, ip_hdr);
 			len = ps->res_len - sizeof(struct sr_ethernet_hdr) - sizeof(struct ip);
 			res_head->icmp_sum = 0;
-			res_head->icmp_sum = cksum((uint8_t *) res_head, len);
+			res_head->icmp_sum = ntohs(cksum((uint8_t *) res_head, len));
 			break;
 
 		case ICMPT_TRACERT:

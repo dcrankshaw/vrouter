@@ -52,8 +52,7 @@ void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 			struct sr_if* iface=(struct sr_if*)malloc(sizeof(struct sr_if));
 			iface=sr_get_interface(ps->sr, buf_walker->interface);
 			memmove(eth->ether_shost, iface->addr, ETHER_ADDR_LEN);
-			eth->ether_type = ETHERTYPE_IP;
-			return 1;
+			eth->ether_type = htons(ETHERTYPE_IP);
 		}
 		else if(buf_walker->num_arp_reqs < 5)
 		{
