@@ -107,8 +107,9 @@ void update_ip_hdr(struct ip*);
 struct sr_rt* get_routing_if(struct packet_state*, struct in_addr);
 void leave_hdr_room(struct packet_state *, int);
 int create_eth_hdr(uint8_t *, struct packet_state *);
-uint16_t cksum(uint16_t *, int);
+uint16_t cksum(uint8_t *, int);
 int test_ip_gen(uint8_t *, unsigned int , char *);
+
 
 /* firewall.c */
 int ft_contains(struct sr_instance *, uint32_t , uint32_t, uint8_t, uint8_t, uint8_t);
