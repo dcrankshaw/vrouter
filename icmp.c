@@ -110,6 +110,8 @@ void create_icmp_data(struct packet_state *ps, struct ip* ip_hdr)
 	}
 	ps->res_len += sizeof(struct ip);
 	ps->response += sizeof(struct ip);
+	printf("\n\nPacket Data Length: %u\n", ps->len);
+	printf("\n\nNeeded Data Length: %u\n", ICMP_DATA_RES);
 	if(ps->len < ICMP_DATA_RES)
 	{
 		if(memcpy(ps->response, ps->packet, ps->len) == 0)
@@ -122,7 +124,7 @@ void create_icmp_data(struct packet_state *ps, struct ip* ip_hdr)
 	}	
 	else
 	{
-		if(memcpy(ps->response, ps->packet, ICMP_DATA_RES))
+		if(memcpy(ps->response, ps->packet, ICMP_DATA_RES) == 0)
 		{
 			printf("error3\n");
 		}

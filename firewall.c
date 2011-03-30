@@ -74,7 +74,7 @@ _flow table_
 /* returns 1 if success, 0 if error */
 int init_rules_table(struct sr_instance* sr, const char* filename)
 {
-  FILE* fp;
+  FILE* fp = 0;
   char line[BUFSIZ];
   char sourceIPin[32];
   char destIPin[32];
@@ -91,24 +91,68 @@ int init_rules_table(struct sr_instance* sr, const char* filename)
       return 0;
     }
 
-  fp = fopen(filename,"r");
-  while(fgets(line,BUFSIZ,fp) != 0)
-    {
-      sscanf(line,"%s %s %i %i %i",sourceIPin,destIPin,IPprotocol,srcPort,dstPort);
-      if(inet_aton(sourceIPin,&srcIP) == 0)
-	{
-	  fprintf(stderr, "Error loading rules table, cannot convert %s to valid IP\n", sourceIPin);
-	  return 0;
+  if(fp = fopen(filename,"r") != 0)
+	{ 
+	 while(fgets(line,BUFSIZ,fp) != 0)
+		{
+		  sscanf(line,"%s %s %d %d %d",sourceIPin,destIPin,IPprotocol,srcPort,dstPort);
+		  if(inet_aton(sourceIPin,&srcIP) == 0)
+		{
+		  fprintf(stderr, "Error loading rules table, cannot convert %s to valid IP\n", sourceIPin);
+		  return 0;
+		}
+		  if(inet_aton(destIPin,&dstIP) == 0)
+		{
+		  fprintf(stderr, "Error loading rules table, cannot convert %s to valid IP\n", destIPin);
+		  return 0;
+		}
+		  add_rule(sr, srcIP, dstIP, IPprotocol, srcPort, dstPort);
+		}
+	  return 1;
 	}
-      if(inet_aton(destIPin,&dstIP) == 0)
+	else
 	{
-	  fprintf(stderr, "Error loading rules table, cannot convert %s to valid IP\n", destIPin);
-	  return 0;
+		printf("Error opening file\n");
+		return 0;
 	}
-      add_rule(sr, srcIP, dstIP, IPprotocol, srcPort, dstPort);
-    }
-  return 1;
 }
+
+void print_rules(struct sr_instance* sr)
+{
+  struct rule* rule_walker = 0;
+  
+  if(sr->rule_table == 0)
+    {
+      printf("Rule Table is empty/n");
+      return;
+    }
+
+  printf("Source IP\tDest IP\tProtocol\tSource Port\tDest Port");
+
+  rule_walker = sr->rule_table;
+  
+  print_rule_entry(rule_walker);
+  while(rule_walker->next)
+    {
+      rule_walker = rule_walker->next;
+      print_rule_entry(rule_walker);
+    }
+}  /* end print_rules() */
+
+void print_rule_entry(struct rule* entry)
+{
+  assert(entry);
+  
+  printf("%s\t\t",inet_ntoa(entry->srcIP));
+  printf("%s\t",inet_ntoa(entry->dstIP));
+  printf("%u\t",entry->IPprotocol);
+  printf("%i\t",entry->srcPort);
+  printf("%i\n",entry->dstPort);
+} /* end print_rule_entry() */
+
+
+
+
 
 /* returns 1 if the entry was successfully added, 0 if it was not added */
 int add_rule(struct sr_instance* sr, struct in_addr srcIP, struct in_addr dstIP, uint8_t IPprotocol, int srcPort, int dstPort)
@@ -133,11 +177,12 @@ int add_rule(struct sr_instance* sr, struct in_addr srcIP, struct in_addr dstIP,
   /* find the end of the linked list */
   rule_walker = sr->rule_table;
   while(rule_walker->next)
-    {
+	{
       rule_walker = rule_walker->next;
     }
   rule_walker->next = (struct rule*)malloc(sizeof(struct rule));
   assert(rule_walker->next);
+  rule_walker = rule_walker->next;
   rule_walker->next = 0;
   rule_walker->srcIP = srcIP;
   rule_walker->dstIP = dstIP;
@@ -208,22 +253,18 @@ int add_ft_entry(struct sr_instance* sr, struct in_addr srcIP, struct in_addr ds
 /* returns 0 if not in table, 1 if in table */
 int ft_contains(struct sr_instance* sr, struct in_addr srcIP, struct in_addr dstIP, uint8_t IPprotocol, int srcPort, int dstPort)
 {
-  struct ft* ft_walker = 0;
-
-  if (sr->flow_table == 0)
-    {
-      return 0;
-    }
+	struct ft* ft_walker = 0;
   
-  ft_walker = sr->flow_table;
-  while(ft_walker->next)
+	ft_walker = sr->flow_table;
+  	while(ft_walker)
     {
-      ft_walker = ft_walker->next;
-      if((ft_walker->srcIP.s_addr == srcIP.s_addr) && (ft_walker->dstIP.s_addr == dstIP.s_addr) && (ft_walker->IPprotocol == IPprotocol) && (ft_walker->srcPort == srcPort) && (ft_walker->dstPort == dstPort))
-	{
-	  ft_walker->ttl += TTL_INCREMENT;
-	  return 1;
-	}
+      
+    	if((ft_walker->srcIP.s_addr == srcIP.s_addr) && (ft_walker->dstIP.s_addr == dstIP.s_addr) && (ft_walker->IPprotocol == IPprotocol) && (ft_walker->srcPort == srcPort) && (ft_walker->dstPort == dstPort))
+		{
+	  		ft_walker->ttl += TTL_INCREMENT;
+	  		return 1;
+		}
+		ft_walker = ft_walker->next;
     }
   
   return 0;
@@ -232,46 +273,41 @@ int ft_contains(struct sr_instance* sr, struct in_addr srcIP, struct in_addr dst
 /* returns 0 if not in table, 1 if in table */
 int rule_contains(struct sr_instance* sr, struct in_addr srcIP, struct in_addr dstIP, uint8_t IPprotocol, int srcPort, int dstPort)
 {
-  struct rule* rule_walker = 0;
-
-  if (sr->rule_table == 0)
-    {
-      return 0;
-    }
-  
-  rule_walker = sr->rule_table;
-  while(rule_walker->next)
-    {
-      rule_walker = rule_walker->next;
-      
-      /* if the rule contains a wildcard, temporarily convert the parameter to a wildcard so it will match */
-      if(rule_walker->srcIP.s_addr == -1)
+	struct rule* rule_walker = 0;
+	
+	
+	rule_walker = sr->rule_table;
+	while(rule_walker)
 	{
-	  srcIP.s_addr = -1;
+		/* if the rule contains a wildcard, temporarily convert the parameter to a wildcard so it will match */
+		if(rule_walker->srcIP.s_addr == 0)
+		{
+			srcIP.s_addr = 0;
+		}
+		if(rule_walker->dstIP.s_addr == 0)
+		{
+			dstIP.s_addr = 0;
+		}
+		if(rule_walker->IPprotocol == 0)
+		{
+			IPprotocol = 0;
+		}
+		if(rule_walker->srcPort == 0)
+		{
+			srcPort = 0;
+		}
+		if(rule_walker->dstPort == 0)
+		{
+			dstPort = 0;
+		}
+		if((rule_walker->srcIP.s_addr == srcIP.s_addr) && (rule_walker->dstIP.s_addr == dstIP.s_addr) && (rule_walker->IPprotocol == IPprotocol) && (rule_walker->srcPort == srcPort) && (rule_walker->dstPort == dstPort))
+		{
+			return 1;
+		}
+		rule_walker = rule_walker->next;
 	}
-      if(rule_walker->dstIP.s_addr == -1)
-	{
-	  dstIP.s_addr = -1;
-	}
-      if(rule_walker->IPprotocol == -1)
-	{
-	  IPprotocol = -1;
-	}
-      if(rule_walker->srcPort == -1)
-	{
-	  srcPort = -1;
-	}
-      if(rule_walker->dstPort == -1)
-	{
-	  dstPort = -1;
-	}
-      if((rule_walker->srcIP.s_addr == srcIP.s_addr) && (rule_walker->dstIP.s_addr == dstIP.s_addr) && (rule_walker->IPprotocol == IPprotocol) && (rule_walker->srcPort == srcPort) && (rule_walker->dstPort == dstPort))
-	{
-	  return 1;
-	}
-    }
-  
-  return 0;
+	
+	return 0;
 }
 
 void print_ft(struct sr_instance* sr)
@@ -338,6 +374,10 @@ void remove_old_ft_entries(struct sr_instance* sr)
 int check_connection(struct sr_instance* sr, struct in_addr srcIP, struct in_addr dstIP, uint8_t IPprotocol, int srcPort, int dstPort)
 {
   if(ft_contains(sr, srcIP, dstIP, IPprotocol, srcPort, dstPort) == 1)
+    {
+      return 1;
+    }
+    if(ft_contains(sr, dstIP, srcIP, IPprotocol, dstPort, srcPort) == 1)
     {
       return 1;
     }

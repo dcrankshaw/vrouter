@@ -17,6 +17,8 @@
 #include <unistd.h>
 #include <string.h>
 
+
+#include "firewall.h"
 #include "sr_if.h"
 #include "sr_rt.h"
 #include "sr_router.h"
@@ -25,7 +27,7 @@
 #include "arp.h"
 #include "buffer.h"
 
-
+#define DEF_RULE_TABLE "rules"
 
 /*--------------------------------------------------------------------- 
  * Method: sr_init(void)
@@ -42,7 +44,14 @@ void sr_init(struct sr_instance* sr)
     /* Add initialization code here! */
 	sr->arp_cache=0;
 	sr->queue=0;
-	sr->flow_tbl=0;
+	sr->flow_table = 0;
+	sr->rule_table = 0;
+	sr->ft_size = 0;
+	char* rules = DEF_RULE_TABLE;
+	init_rules_table(sr, rules);
+	printf("\n\n");
+	print_rules(sr);
+	printf("\n\n");
 
 } /* -- sr_init -- */
 
@@ -273,10 +282,6 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, struct sr_ethern
 		memmove(current->arp_req, ps->response, ps->res_len);
 		current->arp_len = ps->res_len;
 		struct sr_ethernet_hdr *ether_hdr = (struct sr_ethernet_hdr *)ps->response;
-		fprintf(stderr, "\n\n\nMAC right before sending: ");
-        printf("%x:%x:%x:%x:%x:%x \n\n\n",ether_hdr->ether_shost[0],ether_hdr->ether_shost[1],
-        ether_hdr->ether_shost[2],ether_hdr->ether_shost[3],ether_hdr->ether_shost[4],ether_hdr->ether_shost[5]);
-        
 		
 		
 		sr_send_packet(ps->sr, ps->response, ps->res_len, ps->rt_entry->interface);
@@ -394,8 +399,8 @@ int handle_ip(struct packet_state *ps)
 					/*need at least 4 bytes for the dest and source ports */
 					if(ip_hdr->ip_p == IPPROTO_ICMP)
 					{
-						if(ft_contains(ps->sr, ntohl(ip_hdr->ip_src.s_addr),
-							ntohl(ip_hdr->ip_dst.s_addr), ip_hdr->ip_p, 0, 0) == 0)
+						if(check_connection(ps->sr, ip_hdr->ip_src,
+							ip_hdr->ip_dst, ip_hdr->ip_p, 0, 0) == 0)
 							/*send 0 if it's an ICMP packet because they don't 
 							have port numbers */
 						{ return 0; }
@@ -409,8 +414,8 @@ int handle_ip(struct packet_state *ps)
 							memmove(&src_port, ps->packet, 2);
 							uint16_t dst_port = 0;
 							memmove(&dst_port, (ps->packet + 2), 2);
-							if(ft_contains(ps->sr, ntohl(ip_hdr->ip_src.s_addr),
-							ntohl(ip_hdr->ip_dst.s_addr), ip_hdr->ip_p, src_port, dst_port) == 0)
+							if(check_connection(ps->sr, ip_hdr->ip_src,
+							ip_hdr->ip_dst, ip_hdr->ip_p, src_port, dst_port) == 0)
 							{
 								return 0;
 							}
@@ -425,11 +430,11 @@ int handle_ip(struct packet_state *ps)
 			{
 				if(ip_hdr->ip_p == IPPROTO_ICMP)
 					{
-						if(sr_add_ft_entry(ps->sr, ntohl(ip_hdr->ip_src.s_addr),
-							ntohl(ip_hdr->ip_dst.s_addr), ip_hdr->ip_p, 0, 0) == 0)
+						if(add_ft_entry(ps->sr, ip_hdr->ip_src,
+							ip_hdr->ip_dst, ip_hdr->ip_p, 0, 0) == 0)
 						{ return 0; }
-						if(sr_add_ft_entry(ps->sr, ntohl(ip_hdr->ip_dst.s_addr),
-							ntohl(ip_hdr->ip_src.s_addr),ip_hdr->ip_p, 0, 0) == 0)
+						if(add_ft_entry(ps->sr, ip_hdr->ip_dst,
+							ip_hdr->ip_src,ip_hdr->ip_p, 0, 0) == 0)
 						{ return 0; }
 					}
 					else if(ip_hdr->ip_p == IPPROTO_TCP 
@@ -441,11 +446,11 @@ int handle_ip(struct packet_state *ps)
 							memmove(&src_port, ps->packet, 2);
 							uint16_t dst_port = 0;
 							memmove(&dst_port, (ps->packet + 2), 2);
-							if(sr_add_ft_entry(ps->sr, ntohl(ip_hdr->ip_src.s_addr),
-								ntohl(ip_hdr->ip_dst.s_addr), ip_hdr->ip_p, src_port, dst_port) == 0)
+							if(add_ft_entry(ps->sr, ip_hdr->ip_src,
+								ip_hdr->ip_dst, ip_hdr->ip_p, src_port, dst_port) == 0)
 							{ return 0; }
-							if(sr_add_ft_entry(ps->sr, ntohl(ip_hdr->ip_dst.s_addr),
-								ntohl(ip_hdr->ip_src.s_addr), ip_hdr->ip_p, src_port, dst_port) == 0)
+							if(add_ft_entry(ps->sr, ip_hdr->ip_dst,
+								ip_hdr->ip_src, ip_hdr->ip_p, src_port, dst_port) == 0)
 							{ return 0; }
 							
 						}
@@ -464,6 +469,7 @@ int handle_ip(struct packet_state *ps)
 				update_ip_hdr(ip_hdr);
 				memmove(iph, ip_hdr, ps->len); /*TODO: double check that this is right */
 				ps->forward = 1;
+				ps->res_len += ps->len;
 			}
 		}
 		else
@@ -579,14 +585,14 @@ struct sr_rt* get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
 }
 
 /*Temporary implementations of firewall functions for the compiler */
-int ft_contains(struct sr_instance *a, uint32_t b, uint32_t c, uint8_t d, uint8_t f, uint8_t e)
+/*int ft_contains(struct sr_instance *a, uint32_t b, uint32_t c, uint8_t d, uint8_t f, uint8_t e)
 {
 	return 1;
 }
 int sr_add_ft_entry(struct sr_instance *a, uint32_t b, uint32_t c, uint8_t d, uint8_t e, uint8_t f)
 {
 	return 1;
-}
+}*/
 
 
 /*--------------------------------------------------------------------- 

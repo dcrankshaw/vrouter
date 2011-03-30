@@ -56,7 +56,9 @@ struct sr_instance
     FILE* logfile;
     struct arp_cache_entry* arp_cache;
     struct packet_buffer* queue;
-    struct flow_control *flow_tbl;
+    struct ft* flow_table;
+    struct rule* rule_table;
+    int ft_size;
 };
 
 /* -----------------------------------------------------------------------
@@ -109,12 +111,6 @@ void leave_hdr_room(struct packet_state *, int);
 int create_eth_hdr(uint8_t *, struct packet_state *, struct sr_ethernet_hdr *);
 uint16_t cksum(uint8_t *, int);
 int test_ip_gen(uint8_t *, unsigned int , char *);
-
-
-/* firewall.c */
-int ft_contains(struct sr_instance *, uint32_t , uint32_t, uint8_t, uint8_t, uint8_t);
-int sr_add_ft_entry(struct sr_instance *, uint32_t , uint32_t, uint8_t, uint8_t, uint8_t);
-
 
 
 /* -- sr_if.c -- */

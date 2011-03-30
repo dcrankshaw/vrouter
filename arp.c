@@ -70,7 +70,11 @@ void got_Request(struct packet_state * ps, struct sr_arphdr * arp_hdr, const str
 	assert(arp_hdr);
 	assert(eth);
 	
-	uint32_t targetIP = arp_hdr->ar_tip;
+	struct sr_if *iface = sr_get_interface(ps->sr, ps->interface);
+	assert(iface);
+	construct_reply(ps, arp_hdr, iface->addr, eth);
+	
+	/*uint32_t targetIP = arp_hdr->ar_tip;
 	struct sr_if * iface = ps->sr->if_list;
 
 	while(iface!=NULL)
@@ -90,13 +94,13 @@ void got_Request(struct packet_state * ps, struct sr_arphdr * arp_hdr, const str
 		}
 	}
 	if(iface==NULL)
-		printf("Didn't find matching IP Address for interface.\n");
+		printf("Didn't find matching IP Address for interface.\n");*/
 	
 }
 
 void testing(struct packet_state* ps, struct sr_arphdr *arp)
 {
-	printf("\n---JUST TESTING STUFF---\n");
+	/*printf("\n---JUST TESTING STUFF---\n");
 	printf("PRINT CACHE FIRST:::\n");
 	print_cache(ps->sr);
 	struct sr_if * iface=ps->sr->if_list;
@@ -117,7 +121,7 @@ void testing(struct packet_state* ps, struct sr_arphdr *arp)
 	print_cache(ps->sr);
 	delete_entry(ps, ent);
 	print_cache(ps->sr);
-	printf("DONE\n");
+	printf("DONE\n");*/
 	
 }
 
@@ -304,20 +308,20 @@ void send_request(struct packet_state* ps, const uint32_t dest_ip)
 	/* figure out which interface to send from */
 	struct in_addr ip_d;
 	ip_d.s_addr=dest_ip;
-	char* print_addr = (char*) malloc(50);
+	/*char* print_addr = (char*) malloc(50);
 	inet_ntop(AF_INET, &dest_ip, print_addr, INET_ADDRSTRLEN);
 	printf("\nAddress to find corresponding iface for: %s\n", print_addr);
-	free(print_addr);
+	free(print_addr);*/
 	struct sr_rt* iface_rt_entry=get_routing_if(ps, ip_d);
-	printf("\nIFACE: %s\n", iface_rt_entry->interface);
+	/*printf("\nIFACE: %s\n", iface_rt_entry->interface);*/
 	struct sr_if* iface=sr_get_interface(ps->sr, iface_rt_entry->interface);
 	assert(iface);
 	memmove(request->ar_sha, iface->addr, ETHER_ADDR_LEN);
 	request->ar_sip=iface->ip;
 	
-	printf("\nIface addr in arp.c send_request(): ");
+	/*printf("\nIface addr in arp.c send_request(): ");
 	printf("%x:%x:%x:%x:%x:%x \n",iface->addr[0],iface->addr[1],iface->addr[2],
-	iface->addr[3],iface->addr[4],iface->addr[5]);
+	iface->addr[3],iface->addr[4],iface->addr[5]);*/
 	
 	int i=0;
 	for(i=0; i<ETHER_ADDR_LEN; i++)
@@ -343,9 +347,6 @@ void send_request(struct packet_state* ps, const uint32_t dest_ip)
 	memmove(ps->response, new_eth, eth_offset);
 	memmove((ps->response + eth_offset), request, sizeof(struct sr_arphdr));
 	struct sr_ethernet_hdr *temp = (struct sr_ethernet_hdr *)ps->response;
-	fprintf(stderr, "\n\n\nMAC at end of arp.c send_request: ");
-    printf("%x:%x:%x:%x:%x:%x \n\n\n",temp->ether_shost[0],temp->ether_shost[1],
-	temp->ether_shost[2],temp->ether_shost[3],temp->ether_shost[4],temp->ether_shost[5]);
 	
 	
 	free(request);
