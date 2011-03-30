@@ -49,10 +49,11 @@ void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 		{
 			//send packet with matching mac address
 		}
-		else if(buf_walker->num_arp_reqs<5)
+		else if(buf_walker->num_arp_reqs < 5)
 		{
 			buf_walker->num_arp_reqs++;
-			//send_packet(buf_walker->sr, );
+			printf("SENT.");
+			sr_send_packet(ps->sr, buf_walker->arp_req, buf_walker->arp_len, buf_walker->interface);
 		}
 		else
 		{
@@ -67,6 +68,7 @@ void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 			ps->packet += sizeof(struct sr_ethernet_hdr);
 			struct ip *ip_hdr = (struct ip*) (ps->packet);
 			ps->packet += sizeof(struct ip);
+			printf("BUFFER.");
 			icmp_response(ps, ip_hdr, ICMPT_DESTUN, ICMPC_PORTUN);
 			memmove(res_ip, ip_hdr, sizeof(struct ip));
 			res_ip->ip_len = htons(ps->res_len - sizeof(struct sr_ethernet_hdr));

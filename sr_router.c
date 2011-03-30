@@ -98,6 +98,7 @@ Careful about memory allocation issues with incrementing packet
 	current.res_len = 0;
     struct sr_ethernet_hdr *eth = 0;
     int eth_offset = sizeof(struct sr_ethernet_hdr);
+    struct sr_ethernet_hdr *perm_eth = 0;
     
     if(len < eth_offset)
     {
@@ -105,7 +106,9 @@ Careful about memory allocation issues with incrementing packet
     }
     else
     {
+		perm_eth = (struct sr_ethernet_hdr *)malloc(eth_offset);
 		eth = (struct sr_ethernet_hdr *)packet;
+		memmove(perm_eth, eth, eth_offset);
 		leave_hdr_room(&current, eth_offset);
 
 		switch(ntohs(eth->ether_type))
@@ -113,7 +116,7 @@ Careful about memory allocation issues with incrementing packet
 			case (ETHERTYPE_IP):
 				printf("GOT an IP packet");
 				handle_ip(&current);
-				if(create_eth_hdr(head, &current) > 0)
+				if(create_eth_hdr(head, &current, perm_eth) > 0)
 				{
 					printf("\n\nres_len%u\n\n", current.res_len);
 					sr_send_packet(sr, head, current.res_len, current.rt_entry->interface);
@@ -178,6 +181,7 @@ Careful about memory allocation issues with incrementing packet
 	}
 
 	free(head);
+	free(perm_eth);
 	current.response = (uint8_t *)malloc(MAX_PAC_LENGTH);
 	current.res_len = 0;
 	update_buffer(&current, current.sr->queue);
@@ -219,7 +223,7 @@ int test_ip_gen(uint8_t *packet, unsigned int len, char *interface)
 
 
 
-int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps)
+int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, struct sr_ethernet_hdr *eth_rec)
 {
 
 	/*check ARP cache to see if the MAC address for the outgoing IP address is there*/
@@ -242,6 +246,12 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps)
 	else
 	{
 		sif = sr_get_interface(ps->sr, ps->interface);
+		struct sr_ethernet_hdr *eth = (struct sr_ethernet_hdr *) newpacket;
+		memmove(eth->ether_dhost, eth_rec->ether_shost, ETHER_ADDR_LEN);
+		memmove(eth->ether_shost, sif->addr, ETHER_ADDR_LEN);
+		eth->ether_type = htons(ETHERTYPE_IP);
+		return 1;
+		
 	}
 	struct arp_cache_entry *ent = search_cache(ps, new_iphdr->ip_dst.s_addr);
 	if(ent != NULL)
@@ -339,6 +349,7 @@ int handle_ip(struct packet_state *ps)
 					}
 					else
 					{
+						printf("IN ELSE BLOCK BEFORE ICMP SENT/n");
 						icmp_response(ps, ip_hdr, ICMPT_DESTUN, ICMPC_PORTUN);
 					}
 					/* TODO: create the IP header */

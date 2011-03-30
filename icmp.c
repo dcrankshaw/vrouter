@@ -73,6 +73,7 @@ void icmp_response(struct packet_state *ps, struct ip *ip_hdr, unsigned int type
 
 		case ICMPT_DESTUN:
 			res_head = create_icmp_hdr(ps, type, code);
+			printf("IN ICMPT_DESTUN\n");
 			create_icmp_data(ps, ip_hdr);
 			len = ps->res_len - sizeof(struct sr_ethernet_hdr) - sizeof(struct ip);
 			res_head->icmp_sum = cksum((uint8_t *)res_head, len);
@@ -86,11 +87,11 @@ void icmp_response(struct packet_state *ps, struct ip *ip_hdr, unsigned int type
 			break;
 
 		case ICMPT_TRACERT:
-			printf("Traceroute ICMP message response is unimplemented at this time");
+			printf("Traceroute ICMP message response is unimplemented at this time\n");
 			break;
 
 		default:
-			printf("ICMP type %d is unimplemented at this time", type);
+			printf("ICMP type %d is unimplemented at this time\n", type);
 			break;
 	}
 
@@ -102,7 +103,7 @@ void create_icmp_data(struct packet_state *ps, struct ip* ip_hdr)
 	if(memcpy(ps->response, ip_hdr, sizeof(struct ip)) == 0)
 	{
 		/*ERROR CHECKING*/
-		printf("error");
+		printf("error1\n");
 	}
 	ps->res_len += sizeof(struct ip);
 	ps->response += sizeof(struct ip);
@@ -111,7 +112,7 @@ void create_icmp_data(struct packet_state *ps, struct ip* ip_hdr)
 		if(memcpy(ps->response, ps->packet, ps->len) == 0)
 		{
 			/*ERROR CHECKING*/
-			printf("error");
+			printf("error2\n");
 		}
 		ps->res_len += ps->len;
 		ps->response += ps->len;
@@ -120,7 +121,7 @@ void create_icmp_data(struct packet_state *ps, struct ip* ip_hdr)
 	{
 		if(memcpy(ps->response, ps->packet, ICMP_DATA_RES))
 		{
-			printf("error");
+			printf("error3\n");
 		}
 		ps->res_len += ICMP_DATA_RES;
 		ps->response += ICMP_DATA_RES;
@@ -134,7 +135,7 @@ void copy_echo_data(struct packet_state *ps)
 	ps->res_len += ps->len;
 	if(memcpy(ps->response, ps->packet, ps->len) == 0)
 	{
-		printf("error");
+		printf("error4\n");
 	}
 }
 
