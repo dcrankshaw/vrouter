@@ -91,30 +91,23 @@ int init_rules_table(struct sr_instance* sr, const char* filename)
       return 0;
     }
 
-  if(fp = fopen(filename,"r") != 0)
-	{ 
-	 while(fgets(line,BUFSIZ,fp) != 0)
-		{
-		  sscanf(line,"%s %s %d %d %d",sourceIPin,destIPin,IPprotocol,srcPort,dstPort);
-		  if(inet_aton(sourceIPin,&srcIP) == 0)
-		{
-		  fprintf(stderr, "Error loading rules table, cannot convert %s to valid IP\n", sourceIPin);
-		  return 0;
-		}
-		  if(inet_aton(destIPin,&dstIP) == 0)
-		{
-		  fprintf(stderr, "Error loading rules table, cannot convert %s to valid IP\n", destIPin);
-		  return 0;
-		}
-		  add_rule(sr, srcIP, dstIP, IPprotocol, srcPort, dstPort);
-		}
-	  return 1;
-	}
-	else
+	fp = fopen(filename,"r");
+	while(fgets(line,BUFSIZ,fp) != 0)
 	{
-		printf("Error opening file\n");
-		return 0;
+		sscanf(line,"%s %s %u %d %d",sourceIPin,destIPin,(int*)&IPprotocol,&srcPort,&dstPort);
+		if(inet_aton(sourceIPin,&srcIP) == 0)
+		{
+			fprintf(stderr, "Error loading rules table, cannot convert %s to valid IP\n", sourceIPin);
+			return 0;
+		}
+		if(inet_aton(destIPin,&dstIP) == 0)
+		{
+			fprintf(stderr, "Error loading rules table, cannot convert %s to valid IP\n", destIPin);
+			return 0;
+		}
+		add_rule(sr, srcIP, dstIP, IPprotocol, srcPort, dstPort);
 	}
+	return 1;
 }
 
 void print_rules(struct sr_instance* sr)

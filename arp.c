@@ -307,7 +307,7 @@ void send_request(struct packet_state* ps, const uint32_t dest_ip)
 	
 	/* figure out which interface to send from */
 	struct in_addr ip_d;
-	ip_d.s_addr=dest_ip;
+	//ip_d.s_addr=dest_ip;
 	/*char* print_addr = (char*) malloc(50);
 	inet_ntop(AF_INET, &dest_ip, print_addr, INET_ADDRSTRLEN);
 	printf("\nAddress to find corresponding iface for: %s\n", print_addr);
@@ -316,6 +316,7 @@ void send_request(struct packet_state* ps, const uint32_t dest_ip)
 	/*printf("\nIFACE: %s\n", iface_rt_entry->interface);*/
 	struct sr_if* iface=sr_get_interface(ps->sr, iface_rt_entry->interface);
 	assert(iface);
+	ip_d.s_addr = iface_rt_entry->gw.s_addr;
 	memmove(request->ar_sha, iface->addr, ETHER_ADDR_LEN);
 	request->ar_sip=iface->ip;
 	
