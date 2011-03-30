@@ -66,6 +66,7 @@ void icmp_response(struct packet_state *ps, struct ip *ip_hdr, unsigned int type
 			res_head->opt2 = orig->opt2;
 			copy_echo_data(ps);
 			len = ps->res_len - sizeof(struct sr_ethernet_hdr) - sizeof(struct ip);
+			res_head->icmp_sum = 0;
 			res_head->icmp_sum = cksum((uint8_t *) res_head, len);
 			
 			
@@ -76,6 +77,7 @@ void icmp_response(struct packet_state *ps, struct ip *ip_hdr, unsigned int type
 			printf("IN ICMPT_DESTUN\n");
 			create_icmp_data(ps, ip_hdr);
 			len = ps->res_len - sizeof(struct sr_ethernet_hdr) - sizeof(struct ip);
+			res_head->icmp_sum = 0;
 			res_head->icmp_sum = cksum((uint8_t *)res_head, len);
 			break;
 
@@ -83,6 +85,7 @@ void icmp_response(struct packet_state *ps, struct ip *ip_hdr, unsigned int type
 			res_head = create_icmp_hdr(ps, type, code);
 			create_icmp_data(ps, ip_hdr);
 			len = ps->res_len - sizeof(struct sr_ethernet_hdr) - sizeof(struct ip);
+			res_head->icmp_sum = 0;
 			res_head->icmp_sum = cksum((uint8_t *) res_head, len);
 			break;
 

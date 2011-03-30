@@ -92,6 +92,8 @@ void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 			memmove(eth_resp->ether_shost,iface->addr, ETHER_ADDR_LEN);
 			eth_resp->ether_type=htons(ETHERTYPE_IP);
 			
+			/* MADDIE NEEDS TO CHANGE ^^^^^^^ THIS LINE */
+			
 			sr_send_packet(ps->sr, ps->response, ps->res_len, iface_rt_entry->interface);
 			
 		
