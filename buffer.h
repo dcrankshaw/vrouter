@@ -24,7 +24,6 @@ struct packet_buffer
 	uint8_t* packet;
 	uint16_t pack_len;
 	char *interface;
-	struct instance *sr;
 	uint8_t* arp_req;
 	uint16_t arp_len;
 	struct in_addr ip_dst;
@@ -35,8 +34,8 @@ struct packet_buffer
 };
 
 
-void update_buffer();
-struct packet_buffer *buf_packet(struct packet_state *, uint8_t*, const struct in_addr);
+void update_buffer(struct packet_state*,struct packet_buffer*);
+struct packet_buffer *buf_packet(struct packet_state *, uint8_t*, const struct in_addr, const struct sr_if*);
 struct packet_buffer* search_buffer(struct packet_state*,const uint32_t );
 
 #endif

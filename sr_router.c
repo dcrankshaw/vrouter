@@ -121,8 +121,8 @@ Careful about memory allocation issues with incrementing packet
 				/*TODO: temporary*/
 				else
 				{
-					struct sr_ethernet_hdr *temp = (struct sr_ethernet_hdr *) head;
-					/*
+					/*struct sr_ethernet_hdr *temp = (struct sr_ethernet_hdr *) head;
+					
 					temp->ether_shost[0] = 0x00;
 					temp->ether_shost[1] = 0x3d;
 					temp->ether_shost[2] = 0x41;
@@ -142,7 +142,7 @@ Careful about memory allocation issues with incrementing packet
 					test_ip_gen(head, current.res_len, interface);
 					*/
 					
-					memmove(temp->ether_dhost, eth->ether_shost, ETHER_ADDR_LEN);
+					/*memmove(temp->ether_dhost, eth->ether_shost, ETHER_ADDR_LEN);
 					temp->ether_shost[0] = 0x00;
 					temp->ether_shost[1] = 0xd8;
 					temp->ether_shost[2] = 0xb3;
@@ -153,7 +153,7 @@ Careful about memory allocation issues with incrementing packet
 					
 					printf("\n\nres_len%u\n\n", current.res_len);
 					sr_send_packet(sr, head, current.res_len, interface);
-					test_ip_gen(head, current.res_len, interface);
+					test_ip_gen(head, current.res_len, interface);*/
 					
 					
 				}
@@ -180,7 +180,7 @@ Careful about memory allocation issues with incrementing packet
 	free(head);
 	current.response = (uint8_t *)malloc(MAX_PAC_LENGTH);
 	current.res_len = 0;
-	update_buffer();
+	update_buffer(&current, current.sr->queue);
 
 	free(current.response);
 
@@ -233,25 +233,36 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps)
 	response field in packet_state to build her arp_request*/
 	
 	struct ip *new_iphdr = (struct ip*)(newpacket+sizeof(struct sr_ethernet_hdr));
-	
+	struct sr_if *sif = 0;
+	if(ps->forward)
+	{
+		assert(ps->rt_entry);
+		sif = sr_get_interface(ps->sr, ps->rt_entry->interface);
+	}
+	else
+	{
+		sif = sr_get_interface(ps->sr, ps->interface);
+	}
 	struct arp_cache_entry *ent = search_cache(ps, new_iphdr->ip_dst.s_addr);
 	if(ent != NULL)
 	{
 		struct sr_ethernet_hdr *eth = (struct sr_ethernet_hdr *) newpacket;
 		memmove(eth->ether_dhost, ent->mac, ETHER_ADDR_LEN);
-		struct sr_if *sif = sr_get_interface(ps->sr, ps->rt_entry->interface);
 		memmove(eth->ether_shost, sif->addr, ETHER_ADDR_LEN);
 		eth->ether_type = htons(ETHERTYPE_IP);
 		return 1;
 	}
 	else
 	{
-		/*ps->response = newpacket;
-		struct packet_buffer* current = buf_packet(ps);
-		send_request(ps);
+		ps->response = newpacket;
+		struct packet_buffer* current = buf_packet(ps,newpacket, new_iphdr->ip_dst,sif);
+		send_request(ps,new_iphdr->ip_dst.s_addr);
+		printf("Formed ARP Request.\n");
+		current->arp_req=(uint8_t*)malloc(ps->res_len);
+		assert(current->arp_req);
 		memmove(current->arp_req, ps->response, ps->res_len);
 		current->arp_len = ps->res_len;
-		sr_send_packet(ps->sr, ps->response, ps->res_len, ps->rt_entry->interface);*/
+		sr_send_packet(ps->sr, ps->response, ps->res_len, ps->rt_entry->interface);
 		printf("no ethernet header\n");
 		return 0;
 	}
@@ -346,6 +357,7 @@ int handle_ip(struct packet_state *ps)
 					iph->ip_dst = ip_hdr->ip_src;
 					iph->ip_sum = 0;
 					iph->ip_sum = cksum((uint8_t *)iph, sizeof(struct ip));
+					printf("section b.5\n");
 					iph->ip_sum = htons(iph->ip_sum);
 					break;
 				}
@@ -543,7 +555,7 @@ struct sr_rt* get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
 			if(min_mask.s_addr <= current->mask.s_addr)
 			{
 				/*update the best fitting mask to the current one, and point found to current*/
-				min_mask=ps->rt_entry->mask;
+				min_mask=current->mask;
 				response=current;
 			}
 		}

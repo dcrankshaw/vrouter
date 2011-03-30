@@ -25,7 +25,6 @@ struct packet_buffer* search_buffer(struct packet_state* ps,const uint32_t dest_
 	
 	while(buf_walker)
 	{
-	
 		if(buf_walker->ip_dst.s_addr==dest_ip)
 		{
 			return buf_walker;
@@ -115,7 +114,7 @@ void testing_buffer(struct packet_state * ps)
 }
 */
 /* MADDIE */
-struct packet_buffer *buf_packet(struct packet_state *ps, uint8_t* pac, const struct in_addr dest_ip)
+struct packet_buffer * buf_packet(struct packet_state *ps, uint8_t* pac, const struct in_addr dest_ip, const struct sr_if* iface)
 {
 	struct packet_buffer* buf_walker=0;
 	
@@ -127,13 +126,18 @@ struct packet_buffer *buf_packet(struct packet_state *ps, uint8_t* pac, const st
 		ps->sr->queue=(struct packet_buffer*)malloc(sizeof(struct packet_buffer));
 		assert(ps->sr->queue);
 		ps->sr->queue->next=0;
-		ps->sr->queue->packet=pac;
-		ps->sr->queue->pack_len=sizeof(ps->sr->queue->packet);
-		ps->sr->queue->interface= "eth0"; /*What is interface supposed to be?? Source?? -MS"*/
-		memmove(ps->sr->queue->sr, ps->sr, sizeof(ps->sr));
+		ps->sr->queue->packet=(uint8_t*)malloc(ps->res_len);
+		memmove(ps->sr->queue->packet, pac, ps->res_len);
+		ps->sr->queue->pack_len=ps->res_len;
+		printf("BBBB");
+		
+		ps->sr->queue->interface=(char *)malloc(sr_IFACE_NAMELEN);
+		
+		memmove(ps->sr->queue->interface, iface->name, sr_IFACE_NAMELEN); 
 		ps->sr->queue->ip_dst=dest_ip;
-		//TIME when sent
+		//time
 		ps->sr->queue->num_arp_reqs=0;
+		return ps->sr->queue;
 	}
 	else
 	{
@@ -145,21 +149,20 @@ struct packet_buffer *buf_packet(struct packet_state *ps, uint8_t* pac, const st
 		buf_walker->next=(struct packet_buffer*)malloc(sizeof(struct packet_buffer));
 		assert(buf_walker->next);
 		buf_walker=buf_walker->next;
-		ps->sr->queue->next=0;
+		buf_walker->next=0;
 		
-		ps->sr->queue->packet=pac;
-		ps->sr->queue->pack_len=sizeof(ps->sr->queue->packet);
-		ps->sr->queue->interface= "eth0"; /*What is interface supposed to be?? Source?? -MS"*/
-		//ps->sr->queue->sr=ps->sr; /*We don't need this right?? -MS"*/
-		ps->sr->queue->ip_dst=dest_ip;
-		//TIME when sent
-		ps->sr->queue->num_arp_reqs=0;
+		buf_walker->packet=(uint8_t*)malloc(ps->res_len);
+		memmove(buf_walker->packet, pac, ps->res_len);
+		buf_walker->pack_len=ps->res_len;
+		buf_walker->interface=(char *)malloc(sr_IFACE_NAMELEN);
+		memmove(buf_walker->interface, iface->name, sr_IFACE_NAMELEN); 
+		buf_walker->ip_dst=dest_ip;
+		//time
+		buf_walker->num_arp_reqs=0;
+		return buf_walker;
 	}
 	
 	
-	/*copy packet into buffer */
-	/*go through same process as add to ARP cache
-	return the pointer to the new buffer entry */
 	ps->res_len = 0;
 	return NULL;
 }

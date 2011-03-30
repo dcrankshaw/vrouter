@@ -26,7 +26,7 @@
 #endif
 
 #ifndef BROADCAST_ETH
-#define BROADCAST_ETH "ffffff"
+#define BROADCAST_ETH 0xFF
 #endif
 
 struct arp_cache_entry* handle_ARP(struct packet_state * ps, struct sr_ethernet_hdr* eth)
@@ -102,10 +102,10 @@ void testing(struct packet_state* ps, struct sr_arphdr *arp)
 	struct sr_if * iface=ps->sr->if_list;
 	while(iface)
 	{
-	add_cache_entry(ps, iface->ip, iface->addr);
-	printf("%s Added To Cache.\n", iface->name);
-	iface=iface->next;
-	printf("HERE\n");
+		add_cache_entry(ps, iface->ip, iface->addr);
+		printf("%s Added To Cache.\n", iface->name);
+		iface=iface->next;
+		printf("HERE\n");
 	}
 	iface=sr_get_interface(ps->sr, "eth0");
 	struct in_addr ip_addr;
@@ -306,17 +306,34 @@ void send_request(struct packet_state* ps, const uint32_t dest_ip)
 	struct sr_if* iface=sr_get_interface(ps->sr, iface_rt_entry->interface);
 	memmove(request->ar_sha, iface->addr, ETHER_ADDR_LEN);
 	request->ar_sip=iface->ip;
-	memmove(request->ar_tha,"000000",ETHER_ADDR_LEN);
+	
+	int i=0;
+	for(i=0; i<ETHER_ADDR_LEN; i++)
+	{
+		request->ar_tha[i]=0x00;
+	}
 	request->ar_tip=dest_ip;
 	
 	//ARP Constructed, Now Add Ethernet Header
 	struct sr_ethernet_hdr* new_eth;
 	new_eth=(struct sr_ethernet_hdr*)malloc(sizeof(struct sr_ethernet_hdr));
 	memmove(new_eth->ether_shost, iface->addr,ETHER_ADDR_LEN);
-	memmove(new_eth->ether_dhost,BROADCAST_ETH,ETHER_ADDR_LEN);
+	for(i=0; i<ETHER_ADDR_LEN; i++)
+	{
+		new_eth->ether_dhost[i]=BROADCAST_ETH;
+	}
+	request->ar_tip=dest_ip;
+	
 	new_eth->ether_type=htons(ETHERTYPE_ARP);
 	
-	//Put in response
+	int eth_offset=sizeof(struct sr_ethernet_hdr);
+	memmove(ps->response, new_eth, eth_offset);
+	ps->response+=eth_offset;
+	memmove(ps->response, request, sizeof(struct sr_arphdr));
+	free(request);
+	free(new_eth);
+	ps->res_len=eth_offset + sizeof(struct sr_arphdr);
+	
 }
 
 
