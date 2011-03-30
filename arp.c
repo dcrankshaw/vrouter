@@ -195,7 +195,7 @@ struct arp_cache_entry* search_cache(struct packet_state* ps,const uint32_t ip)
 	return NULL;
 }
 
-void delete_entry(struct packet_state* ps,const struct arp_cache_entry* want_deleted)
+void delete_entry(struct packet_state* ps, struct arp_cache_entry* want_deleted)
 {
 	struct arp_cache_entry* prev=0;
 	struct arp_cache_entry* walker=0;
@@ -227,6 +227,7 @@ void delete_entry(struct packet_state* ps,const struct arp_cache_entry* want_del
 			walker=walker->next;
 		}
 	}
+	free(walker);
 	
 }
 
@@ -333,6 +334,7 @@ void send_request(struct packet_state* ps, const uint32_t dest_ip)
 	free(request);
 	free(new_eth);
 	ps->res_len=eth_offset + sizeof(struct sr_arphdr);
+
 	
 }
 

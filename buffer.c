@@ -47,7 +47,13 @@ void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 		struct arp_cache_entry* ent=search_cache(ps, search_ip);
 		if(ent!=NULL)
 		{
-			//send packet with matching mac address
+			struct sr_ethernet_hdr *eth = (struct sr_ethernet_hdr *)(buf_walker->packet);
+			memmove(eth->ether_dhost, ent->mac, ETHER_ADDR_LEN);
+			struct sr_if* iface=(struct sr_if*)malloc(sizeof(struct sr_if));
+			iface=sr_get_interface(ps->sr, buf_walker->interface);
+			memmove(eth->ether_shost, iface->addr, ETHER_ADDR_LEN);
+			eth->ether_type = ETHERTYPE_IP;
+			return 1;
 		}
 		else if(buf_walker->num_arp_reqs < 5)
 		{
@@ -68,7 +74,6 @@ void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 			ps->packet += sizeof(struct sr_ethernet_hdr);
 			struct ip *ip_hdr = (struct ip*) (ps->packet);
 			ps->packet += sizeof(struct ip);
-			printf("BUFFER.");
 			icmp_response(ps, ip_hdr, ICMPT_DESTUN, ICMPC_PORTUN);
 			memmove(res_ip, ip_hdr, sizeof(struct ip));
 			res_ip->ip_len = htons(ps->res_len - sizeof(struct sr_ethernet_hdr));
@@ -98,18 +103,47 @@ void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 			
 		
 	
-			
-			
-			
-			
-			//delete_from_buffer() /*NEED TO DO--MS*/
+			delete_from_buffer(ps,buf_walker);
 		}
-	
-	
 	}
-		printf("Unimplemented");
 	
 }
+
+void delete_from_buffer(struct packet_state* ps, struct packet_buffer* want_deleted)
+{
+	struct packet_buffer* prev=0;
+	struct packet_buffer* walker=0;
+	walker=ps->sr->queue;
+	while(walker)
+	{
+		if(walker==want_deleted)
+		{
+			if(prev==0)
+			{
+				ps->sr->queue=ps->sr->queue->next;
+				break;
+			}
+			else if(!prev->next->next)
+			{
+			prev->next=NULL;
+			break;
+			}
+			else
+			{
+				prev->next=prev->next->next;
+				break;
+			}
+		}
+		else
+		{
+			prev=walker;
+			walker=walker->next;
+		}
+	}
+	free(walker);
+
+}
+
 /*
 void testing_buffer(struct packet_state * ps)
 {
