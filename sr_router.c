@@ -114,7 +114,7 @@ Careful about memory allocation issues with incrementing packet
 		switch(ntohs(eth->ether_type))
 		{
 			case (ETHERTYPE_IP):
-				printf("GOT an IP packet");
+				printf("GOT an IP packet\n");
 				handle_ip(&current);
 				if(create_eth_hdr(head, &current, perm_eth) > 0)
 				{
@@ -162,7 +162,7 @@ Careful about memory allocation issues with incrementing packet
 				break;
 
 			case (ETHERTYPE_ARP):
-				printf("Got an ARP packet");
+				printf("Got an ARP packet\n");
 				struct arp_cache_entry *new_entry = handle_ARP(&current, eth);
 				if(new_entry == NULL)
 				{
@@ -174,7 +174,7 @@ Careful about memory allocation issues with incrementing packet
 				}
 				break;
 			default:
-				printf("%x", eth->ether_type);
+				printf("%x\n", eth->ether_type);
 		}
 		
 	}
@@ -192,7 +192,7 @@ Careful about memory allocation issues with incrementing packet
 
 int test_ip_gen(uint8_t *packet, unsigned int len, char *interface)
 {
-	int hdr_len = sizeof(struct sr_ethernet_hdr) + sizeof(struct ip) + sizeof(struct icmp_hdr);
+	/*int hdr_len = sizeof(struct sr_ethernet_hdr) + sizeof(struct ip) + sizeof(struct icmp_hdr);
 	if(len < hdr_len)
 	{
 		printf("packet too short");
@@ -215,7 +215,7 @@ int test_ip_gen(uint8_t *packet, unsigned int len, char *interface)
 	free(current_address);
 	free(dest_address);
 	
-	printf("\n\nICMP HEADER:\ntype: %u, code %u, sum: %u\n\n\n", icmp->icmp_type, icmp->icmp_code, icmp->icmp_sum);
+	printf("\n\nICMP HEADER:\ntype: %u, code %u, sum: %u\n\n\n", icmp->icmp_type, icmp->icmp_code, icmp->icmp_sum);*/
 	return 0;
 }
 
@@ -241,11 +241,9 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, struct sr_ethern
 	{
 		assert(ps->rt_entry);
 		sif = sr_get_interface(ps->sr, ps->rt_entry->interface);
-		printf("Interface to leave: %s", sif->name);
 	}
 	else
 	{
-		printf("Not forwarding\n");
 		sif = sr_get_interface(ps->sr, ps->interface);
 		struct sr_ethernet_hdr *eth = (struct sr_ethernet_hdr *) newpacket;
 		memmove(eth->ether_dhost, eth_rec->ether_shost, ETHER_ADDR_LEN);
@@ -267,15 +265,21 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, struct sr_ethern
 	{
 		ps->response = newpacket;
 		struct packet_buffer* current = buf_packet(ps,newpacket, new_iphdr->ip_dst,sif);
+		ps->response = newpacket;
 		send_request(ps,new_iphdr->ip_dst.s_addr);
 		current->num_arp_reqs=1;
-		printf("Formed ARP Request.\n");
 		current->arp_req=(uint8_t*)malloc(ps->res_len);
 		assert(current->arp_req);
 		memmove(current->arp_req, ps->response, ps->res_len);
 		current->arp_len = ps->res_len;
+		struct sr_ethernet_hdr *ether_hdr = (struct sr_ethernet_hdr *)ps->response;
+		fprintf(stderr, "\n\n\nMAC right before sending: ");
+        printf("%x:%x:%x:%x:%x:%x \n\n\n",ether_hdr->ether_shost[0],ether_hdr->ether_shost[1],
+        ether_hdr->ether_shost[2],ether_hdr->ether_shost[3],ether_hdr->ether_shost[4],ether_hdr->ether_shost[5]);
+        
+		
+		
 		sr_send_packet(ps->sr, ps->response, ps->res_len, ps->rt_entry->interface);
-		printf("no ethernet header\n");
 		return 0;
 	}
 	return 0;
@@ -303,7 +307,6 @@ int handle_ip(struct packet_state *ps)
 			printf("struct length: %zu\npacketlength: %u\n", sizeof(struct ip), ntohs(ip_hdr->ip_len));
 		}
 		int ip_offset = sizeof(struct ip);
-		printf("section a\n");
 		char *if0 = "eth0";
 		char *if1 = "eth1";
 		char *if2 = "eth2";
@@ -313,7 +316,6 @@ int handle_ip(struct packet_state *ps)
 		ps->rt_entry = get_routing_if(ps, ip_hdr->ip_dst);
 		struct ip *iph = (struct ip*)ps->response; /* mark where the ip header should go */
 		
-		printf("section b\n");
 		
 		/*TODO: make sure interface matching incoming interface ???*/
 
@@ -330,11 +332,10 @@ int handle_ip(struct packet_state *ps)
 				inet_ntop(AF_INET, &iface->ip, current_address, (INET_ADDRSTRLEN+1)*sizeof(char));
 				uint32_t temporary = ip_hdr->ip_dst.s_addr;
 				inet_ntop(AF_INET, &temporary, dest_address, (INET_ADDRSTRLEN+1)*sizeof(char));
-				printf("current address: %s\n destination address: %s\n", current_address, dest_address);
+				/*printf("current address: %s\n destination address: %s\n", current_address, dest_address);*/
 				/* TODO: This will need rigorous testing */
 				if(iface->ip == ip_hdr->ip_dst.s_addr)
 				{
-					printf("reached sr_router.c, print statement #1");
 					
 					/*
 					if(strcmp(ps->interface, if0) == 0)
@@ -369,15 +370,12 @@ int handle_ip(struct packet_state *ps)
 					iph->ip_dst = ip_hdr->ip_src;
 					iph->ip_sum = 0;
 					iph->ip_sum = cksum((uint8_t *)iph, sizeof(struct ip));
-					printf("section b.5\n");
 					iph->ip_sum = htons(iph->ip_sum);
 					break;
 				}
 				else
 				{
-					printf("section c");
 					iface = iface->next;
-					printf("section d");
 				}
 			}
 		}
@@ -385,7 +383,6 @@ int handle_ip(struct packet_state *ps)
 		/*Deals with forwarding*/
 		if(!found_case)
 		{
-			printf("ResLen0: %i\n", ps->res_len);
 			/*check if interface==eth0*/
 			
 			if(strcmp(ps->interface, if0) == 0)
@@ -471,10 +468,9 @@ int handle_ip(struct packet_state *ps)
 		}
 		else
 		{
-			printf("ResLen1: %i\n", ps->res_len);
+			printf("ResLen 1: %i\n", ps->res_len);
 		}
 	}
-	printf("ResLen: %i\n", ps->res_len);
 	return 1;
 }
 
@@ -493,14 +489,14 @@ uint16_t cksum(uint8_t *buff, int len)
 	uint32_t sum = 0;
 	uint16_t i;
 	
-	for(i = 0; i < len; i++)
+	/*for(i = 0; i < len; i++)
 	{
 		printf("%x  ", buff[i]);
 		if(i%10 == 0)
 		{
 			printf("\n");
 		}
-	}
+	}*/
 	
 	for(i = 0; i < len; i = i + 2)
 	{
@@ -514,7 +510,7 @@ uint16_t cksum(uint8_t *buff, int len)
 	}
 	
 	sum = ~sum;
-	printf("\n\n\nSum: %x\nLen: %d\n\n", sum, len);
+	/*printf("\n\n\nSum: %x\nLen: %d\n\n", sum, len);*/
 	return ((uint16_t) sum);
 
 	

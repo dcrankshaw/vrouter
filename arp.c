@@ -18,11 +18,11 @@
 #endif
 
 #ifndef ARP_HRD_ETH
-#define ARP_HRD_ETH 1
+#define ARP_HRD_ETH 0x0001
 #endif
 
 #ifndef ARP_PRO_IP
-#define ARP_PRO_IP 0x800
+#define ARP_PRO_IP 0x0800
 #endif
 
 #ifndef BROADCAST_ETH
@@ -295,8 +295,8 @@ void send_request(struct packet_state* ps, const uint32_t dest_ip)
 	//Construct arp header
 	struct sr_arphdr* request;
 	request=(struct sr_arphdr*)malloc(sizeof(struct sr_arphdr));
-	request->ar_hrd=ARP_HRD_ETH;
-	request->ar_pro=ARP_PRO_IP;
+	request->ar_hrd=htons(ARP_HRD_ETH);
+	request->ar_pro=htons(ARP_PRO_IP);
 	request->ar_hln=ETHER_ADDR_LEN;
 	request->ar_pln=ARP_IP_LEN;
 	request->ar_op=htons(ARP_REQUEST);
@@ -304,10 +304,20 @@ void send_request(struct packet_state* ps, const uint32_t dest_ip)
 	/* figure out which interface to send from */
 	struct in_addr ip_d;
 	ip_d.s_addr=dest_ip;
+	char* print_addr = (char*) malloc(50);
+	inet_ntop(AF_INET, &dest_ip, print_addr, INET_ADDRSTRLEN);
+	printf("\nAddress to find corresponding iface for: %s\n", print_addr);
+	free(print_addr);
 	struct sr_rt* iface_rt_entry=get_routing_if(ps, ip_d);
+	printf("\nIFACE: %s\n", iface_rt_entry->interface);
 	struct sr_if* iface=sr_get_interface(ps->sr, iface_rt_entry->interface);
+	assert(iface);
 	memmove(request->ar_sha, iface->addr, ETHER_ADDR_LEN);
 	request->ar_sip=iface->ip;
+	
+	printf("\nIface addr in arp.c send_request(): ");
+	printf("%x:%x:%x:%x:%x:%x \n",iface->addr[0],iface->addr[1],iface->addr[2],
+	iface->addr[3],iface->addr[4],iface->addr[5]);
 	
 	int i=0;
 	for(i=0; i<ETHER_ADDR_LEN; i++)
@@ -331,8 +341,13 @@ void send_request(struct packet_state* ps, const uint32_t dest_ip)
 	
 	int eth_offset=sizeof(struct sr_ethernet_hdr);
 	memmove(ps->response, new_eth, eth_offset);
-	ps->response+=eth_offset;
-	memmove(ps->response, request, sizeof(struct sr_arphdr));
+	memmove((ps->response + eth_offset), request, sizeof(struct sr_arphdr));
+	struct sr_ethernet_hdr *temp = (struct sr_ethernet_hdr *)ps->response;
+	fprintf(stderr, "\n\n\nMAC at end of arp.c send_request: ");
+    printf("%x:%x:%x:%x:%x:%x \n\n\n",temp->ether_shost[0],temp->ether_shost[1],
+	temp->ether_shost[2],temp->ether_shost[3],temp->ether_shost[4],temp->ether_shost[5]);
+	
+	
 	free(request);
 	free(new_eth);
 	ps->res_len=eth_offset + sizeof(struct sr_arphdr);

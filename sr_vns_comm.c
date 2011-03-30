@@ -527,6 +527,14 @@ sr_ether_addrs_match_interface( struct sr_instance* sr, /* borrowed */
 
     if ( memcmp( ether_hdr->ether_shost, iface->addr, ETHER_ADDR_LEN) != 0 )
     {
+        fprintf(stderr, "Packet MAC:\n");
+        printf("%x:%x:%x:%x:%x:%x \n",ether_hdr->ether_shost[0],ether_hdr->ether_shost[1],
+        ether_hdr->ether_shost[2],ether_hdr->ether_shost[3],ether_hdr->ether_shost[4],ether_hdr->ether_shost[5]);
+        
+        fprintf(stderr, "Iface MAC:\n"); 
+        printf("%x:%x:%x:%x:%x:%x \n",iface->addr[0],iface->addr[1],iface->addr[2],iface->addr[3],
+        iface->addr[4],iface->addr[5]);
+       
         fprintf( stderr, "** Error, source address does not match interface\n");
         return 0;
     }
