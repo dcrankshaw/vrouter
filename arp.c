@@ -227,6 +227,7 @@ void delete_entry(struct packet_state* ps, struct arp_cache_entry* want_deleted)
 			walker=walker->next;
 		}
 	}
+	free(walker->mac);
 	free(walker);
 	
 }
@@ -319,9 +320,10 @@ void send_request(struct packet_state* ps, const uint32_t dest_ip)
 	struct sr_ethernet_hdr* new_eth;
 	new_eth=(struct sr_ethernet_hdr*)malloc(sizeof(struct sr_ethernet_hdr));
 	memmove(new_eth->ether_shost, iface->addr,ETHER_ADDR_LEN);
+	ps->rt_entry = iface_rt_entry;
 	for(i=0; i<ETHER_ADDR_LEN; i++)
 	{
-		new_eth->ether_dhost[i]=BROADCAST_ETH;
+		new_eth->ether_dhost[i]=0xff;
 	}
 	request->ar_tip=dest_ip;
 	

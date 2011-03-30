@@ -53,12 +53,15 @@ void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 			iface=sr_get_interface(ps->sr, buf_walker->interface);
 			memmove(eth->ether_shost, iface->addr, ETHER_ADDR_LEN);
 			eth->ether_type = htons(ETHERTYPE_IP);
+			buf_walker=buf_walker->next;
 		}
 		else if(buf_walker->num_arp_reqs < 5)
 		{
+		
 			buf_walker->num_arp_reqs++;
 			printf("SENT.");
 			sr_send_packet(ps->sr, buf_walker->arp_req, buf_walker->arp_len, buf_walker->interface);
+			buf_walker=buf_walker->next;
 		}
 		else
 		{
@@ -96,19 +99,19 @@ void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 			memmove(eth_resp->ether_shost,iface->addr, ETHER_ADDR_LEN);
 			eth_resp->ether_type=htons(ETHERTYPE_IP);
 			
-			/* MADDIE NEEDS TO CHANGE ^^^^^^^ THIS LINE */
-			
 			sr_send_packet(ps->sr, ps->response, ps->res_len, iface_rt_entry->interface);
 			
 		
 	
-			delete_from_buffer(ps,buf_walker);
+			buf_walker=delete_from_buffer(ps,buf_walker);
+			
 		}
+		
 	}
 	
 }
 
-void delete_from_buffer(struct packet_state* ps, struct packet_buffer* want_deleted)
+struct packet_buffer* delete_from_buffer(struct packet_state* ps, struct packet_buffer* want_deleted)
 {
 	struct packet_buffer* prev=0;
 	struct packet_buffer* walker=0;
@@ -139,8 +142,12 @@ void delete_from_buffer(struct packet_state* ps, struct packet_buffer* want_dele
 			walker=walker->next;
 		}
 	}
+	free(walker->packet);
+	free(walker->interface);
+	free(walker->arp_req);
 	free(walker);
 
+return prev->next;
 }
 
 /*
