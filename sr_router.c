@@ -174,9 +174,12 @@ Careful about memory allocation issues with incrementing packet
 				printf("%x", eth->ether_type);
 		}
 	}
+	free(head);
+	current.response = (uint8_t *)malloc(MAX_PAC_LENGTH);
+	current.res_len = 0;
 	update_buffer();
 
-	free(head);
+	free(current.response);
     
 }/* end sr_ForwardPacket */
 
@@ -320,7 +323,7 @@ int handle_ip(struct packet_state *ps)
 		
 		/*struct in_addr ipdst_host_order;
 		ipdst_host_order.s_addr = ntohl(ip_hdr->ip_dst.s_addr);*/ /*may need to remove ntohl*/
-		get_routing_if(ps, ip_hdr->ip_dst);
+		ps->rt_entry = get_routing_if(ps, ip_hdr->ip_dst);
 		struct ip *iph = (struct ip*)ps->response; /* mark where the ip header should go */
 		
 		printf("section b\n");
@@ -556,8 +559,9 @@ void update_ip_hdr(struct ip *ip_hdr)
 }
 
 /*METHOD: Get the correct entry in the routing table*/
-void get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
+struct sr_rt *get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
 {	
+	struct sr_rt *response = NULL;
 	struct sr_rt *current = ps->sr->routing_table;
 	struct in_addr min_mask;
 	min_mask.s_addr = 0;
@@ -574,13 +578,13 @@ void get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
 			if(min_mask.s_addr <= current->mask.s_addr)
 			{
 				/*update the best fitting mask to the current one, and point found to current*/
-				ps->rt_entry=current;
+				response = current;
 				min_mask=ps->rt_entry->mask;
-				
 			}
 		}
 		current = current->next;
 	}
+	return response;
 }
 
 /*Temporary implementations of firewall functions for the compiler */
