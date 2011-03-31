@@ -206,6 +206,15 @@ int add_ft_entry(struct sr_instance* sr, struct in_addr srcIP, struct in_addr ds
       return 0;  /* ICMP "connection refused" returned and log entry generated */
     }
   
+  /* -------------------------------------
+   * Check if flow table already contains the connection
+   * If it does, we need to update ttl, but not re-add
+   * -------------------------------------*/
+   /*if(ft_contains(sr, srcIP, dstIP, IPprotocol, srcPort, dstPort) == 1)
+   {
+        return 1;
+   }*/
+  
   /* see if the table is empty */
   if(sr->flow_table == 0)
     {
@@ -351,7 +360,7 @@ void remove_old_ft_entries(struct sr_instance* sr)
   int maxTTL = MAX_ENTRY_TTL;
 
   ft_walker = sr->flow_table;
-  print_ft(sr);
+  //print_ft(sr);
   while(ft_walker)
   {
   	if((cur - ft_walker->creation_time > ft_walker->ttl) || (ft_walker->ttl > maxTTL))
@@ -412,5 +421,5 @@ int check_connection(struct sr_instance* sr, struct in_addr srcIP, struct in_add
       return 1;
     }
 
-  return 1;
+  return 0;
 } /* end check_connection() */
