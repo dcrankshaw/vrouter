@@ -18,6 +18,7 @@
 
 
 /*Maddie--prolly don't need*/
+/*
 struct packet_buffer* search_buffer(struct packet_state* ps,const uint32_t dest_ip)
 {
 	struct packet_buffer* buf_walker=0;
@@ -33,12 +34,10 @@ struct packet_buffer* search_buffer(struct packet_state* ps,const uint32_t dest_
 	}
 	return NULL;
 }
+*/
 
-/* MADDIE */
 void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 {
-
-	printf("In update buffer.\n");
 	struct packet_buffer* buf_walker=0;
 	buf_walker=queue;
 	

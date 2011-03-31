@@ -1,64 +1,4 @@
-/*
-firewall.c
-Adam Gross
-Revised 3/28/11 11:00 AM
-http://yuba.stanford.edu/vns/assignments/firewall
-*/
 
-/*
-eth0 is external
-eth1 is internal
-eth2 is internal
-
-Pseudocode (goes in sr_router.c):
-
-if (sr_handlepacket.if == eth0)
-    if(dest == eth1 || dest == eth2)
-     {
-       drop packet, no response;
-       return;
-     }
-    if(dest == app1 || dest == app2)
-     {
-       if(check_connection(sr, sourceIP, destIP, prtcl, sourcePort, destPort) == 0)
-        {       
-	  packet denied;
-	  return;
-        }
-       if(check_connection(sr, sourceIP, destIP, prtcl, sourcePort, destPort) == 1)
-        {
-	 packed allowed;
-	 return;
-	}
-     }
-if (sr_handlepacket.if == eth1 || sr_handlepacket.if == eth2)
-{
-    if(sr_add_ft_entry(sr, sourceIP, destIP, prtcl, sourcePort, destPort) == 1)
-       return;
-    else
-       flow table is full - send ICMP "connection refused" and generate log entry;
-    if(sr_add_fr_entry(sr, destIP, sourceIP, prtcl, destPort, sourcePort) == 1)
-       return;
-    else
-       flow table is full - send ICMP "connection refused" and generate log entry;
-}
-____________________________________________________________________________________________
-
-Data members for router (goes in sr_router.h, in the sr_instance struct):
-
-#include "firewall.h"
-
-struct ft* flow_table; //flow table
-struct rule* rule_table; //rules table
-int ft_size; //number of entries in flow table
-
-_____________________________________________________________________________________________
-
-Notes:
-
-_flow table_
-<srcIP, dstIP, IPprotocol, src-port, dst-port>
- */
 
 #include "firewall.h"
 
@@ -191,18 +131,24 @@ int add_rule(struct sr_instance* sr, struct in_addr srcIP, struct in_addr dstIP,
 /* returns 1 if the entry was successfully added, 0 if it was not added */
 int add_ft_entry(struct sr_instance* sr, struct in_addr srcIP, struct in_addr dstIP, uint8_t IPprotocol, int srcPort, int dstPort)
 {
-  struct ft* ft_walker = 0;
+    printf("Entered add entry method.\n");
+    printf("-------FLOW TABLE --------");
+    print_ft(sr);
+    
+    struct ft* ft_walker = 0;
 
-  int maxSize = MAX_FT_SIZE;
+    int maxSize = MAX_FT_SIZE;
 
   /* check to see if table is full */
   if(sr->ft_size == maxSize)
     {
+        printf("Rule table is max size.\n");
       remove_old_ft_entries(sr);
     }
     /* if remove_old_ft_entries() didn't remove anything */
   if(sr->ft_size == maxSize)
     {
+    printf("Delete failed and Rule table is still max size.\n");
       return 0;  /* ICMP "connection refused" returned and log entry generated */
     }
   
@@ -210,11 +156,13 @@ int add_ft_entry(struct sr_instance* sr, struct in_addr srcIP, struct in_addr ds
    * Check if flow table already contains the connection
    * If it does, we need to update ttl, but not re-add
    * -------------------------------------*/
-   /*if(ft_contains(sr, srcIP, dstIP, IPprotocol, srcPort, dstPort) == 1)
+   if(ft_contains(sr, srcIP, dstIP, IPprotocol, srcPort, dstPort) == 1)
    {
+        printf("Connection already contained in flow table.\n");
         return 1;
-   }*/
+   }
   
+  printf("Going to add now.\n");
   /* see if the table is empty */
   if(sr->flow_table == 0)
     {
@@ -231,9 +179,14 @@ int add_ft_entry(struct sr_instance* sr, struct in_addr srcIP, struct in_addr ds
       sr->ft_size++;
 
       return 1;
+      
     }
   /* find the end of the linked list */
   ft_walker = sr->flow_table;
+  
+  assert(ft_walker);
+  
+  
   while(ft_walker->next)
     {
       ft_walker = ft_walker->next;
@@ -360,7 +313,7 @@ void remove_old_ft_entries(struct sr_instance* sr)
   int maxTTL = MAX_ENTRY_TTL;
 
   ft_walker = sr->flow_table;
-  //print_ft(sr);
+  print_ft(sr);
   while(ft_walker)
   {
   	if((cur - ft_walker->creation_time > ft_walker->ttl) || (ft_walker->ttl > maxTTL))

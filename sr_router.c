@@ -138,7 +138,8 @@ Careful about memory allocation issues with incrementing packet
 				struct arp_cache_entry *new_entry = handle_ARP(&current, eth);
 				if(new_entry == NULL)
 				{
-					sr_send_packet(sr, head, current.res_len, interface);
+					if(current.res_len >0)
+					    sr_send_packet(sr, head, current.res_len, interface);
 				}
 				/*
 				else
@@ -554,15 +555,6 @@ struct sr_rt* get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
 	return response;
 }
 
-/*Temporary implementations of firewall functions for the compiler */
-/*int ft_contains(struct sr_instance *a, uint32_t b, uint32_t c, uint8_t d, uint8_t f, uint8_t e)
-{
-	return 1;
-}
-int sr_add_ft_entry(struct sr_instance *a, uint32_t b, uint32_t c, uint8_t d, uint8_t e, uint8_t f)
-{
-	return 1;
-}*/
 
 
 /*--------------------------------------------------------------------- 

@@ -17,8 +17,8 @@ Revised 3/28/11 12:00 AM
 #include <stdint.h>
 
 #define MAX_FT_SIZE	50
-#define TTL_INCREMENT	50  /* number of seconds */
-#define MAX_ENTRY_TTL	1000
+#define TTL_INCREMENT	5  /* number of seconds */
+#define MAX_ENTRY_TTL   100
 
 /* node in the flow table */
 struct ft
