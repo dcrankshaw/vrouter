@@ -34,76 +34,40 @@ int init_rules_table(struct sr_instance* sr, const char* filename)
 {
 
   FILE* fp = 0;
-
   char line[BUFSIZ];
-
   char sourceIPin[32];
-
   char destIPin[32];
-
   struct in_addr srcIP;
-
   struct in_addr dstIP;
-
   uint8_t IPprotocol;
-
   int srcPort;
-
   int dstPort;
 
-
-
   assert(filename);
-
   if(access(filename,R_OK) != 0)
-
     {
-
       perror("access");
-
       return 0;
-
     }
-
-
 
 fp = fopen(filename,"r");
 
-	
-
  while(fgets(line,BUFSIZ,fp) != 0)
-
 	{
-
 	  sscanf(line,"%s %s %d %d %d",sourceIPin,destIPin,(int*)&IPprotocol,&srcPort,&dstPort);
-
 	  if(inet_aton(sourceIPin,&srcIP) == 0)
-
 	{
-
 	  fprintf(stderr, "Error loading rules table, cannot convert %s to valid IP\n", sourceIPin);
-
 	  return 0;
-
 	}
-
 	  if(inet_aton(destIPin,&dstIP) == 0)
-
 	{
-
 	  fprintf(stderr, "Error loading rules table, cannot convert %s to valid IP\n", destIPin);
-
 	  return 0;
-
 	}
-
 	  add_rule(sr, srcIP, dstIP, IPprotocol, srcPort, dstPort);
-
 	}
-
   return 1;
-
-	
 
 }
 
@@ -112,205 +76,126 @@ fp = fopen(filename,"r");
 /* returns 1 if success, 0 if error */
 
 int init_if_config(struct sr_instance* sr, const char* filename)
-
 {
 
   FILE* fp = 0;
-
   char line[BUFSIZ];
-
   char if_name[sr_IFACE_NAMELEN];
-
   char category[CAT_NAME_LEN];
-
   char *exter = FW_EXTERNAL;
-
   char *inter = FW_INTERNAL;
-
   struct if_cat_list *int_walker = sr->inter;
-
   struct if_cat_list *ext_walker = sr->exter;
-
-  
-
-
-
   assert(filename);
-
   if(access(filename,R_OK) != 0)
-
     {
-
       perror("access");
-
       return 0;
-
     }
-
-
-
 fp = fopen(filename,"r");
 
-	
-
  while(fgets(line,BUFSIZ,fp) != 0)
-
  {
-
 	  sscanf(line,"%s %s",if_name,category);
-
 	  if(strcmp(category, exter) == 0)
-
 	  {
-
 	  	if(sr->exter == 0)
-
 	  	{
-
 	  		sr->exter = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
-
 	  		strncpy(sr->exter->name, if_name, sr_IFACE_NAMELEN);
-
 	  		sr->exter->next = 0;
-
 	  		ext_walker = sr->exter;
-
 	  	}
-
 	  	else
-
 	  	{
-
 	  		ext_walker->next = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
-
 	  		ext_walker = ext_walker->next;
-
 	  		strncpy(ext_walker->name, if_name, sr_IFACE_NAMELEN);
-
 	  		ext_walker->next = 0;
-
 	  	}
-
 	  }
-
 	  else if(strcmp(category, inter) == 0)
-
 	  {
-
 	  	if(sr->inter == 0)
-
 	  	{
-
 	  		sr->inter = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
-
 	  		strncpy(sr->inter->name, if_name, sr_IFACE_NAMELEN);
-
 	  		sr->inter->next = 0;
-
 	  		int_walker = sr->inter;
-
 	  	}
-
 	  	else
-
 	  	{
-
 	  		int_walker->next = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
-
 	  		int_walker = int_walker->next;
-
 	  		strncpy(int_walker->name, if_name, sr_IFACE_NAMELEN);
-
 	  		int_walker->next = 0;
-
 	  	}
-
 	  }
-
 	  else
-
 	  {
-
 	  	printf("Error with the interface configuration file\n");
-
 	  }
-
   }
-
   return 1;	
-
 }
 
+void print_if_config(struct sr_instance* sr)
+{
+	printf("Interface Config:\n");
+	
+	printf("External interfaces:\t");
+	struct if_cat_list *walker = sr->exter;
+	while(walker)
+	{
+		printf("%s\t", walker->name);
+		walker = walker->next;
+	}
+	printf("\n");
+	
+	walker = sr->inter;
+	printf("Internal interfaces:\t");
+	while(walker)
+	{
+		printf("%s\t", walker->name);
+		walker = walker->next;
+	}
+	printf("\n");
+}
 
 
 int is_external(struct sr_instance* sr, char *iface)
-
 {
-
 	struct if_cat_list *walker = sr->exter;
-
 	while(walker)
-
 	{
-
 		if(strcmp(walker->name, iface) == 0)
-
 		{
-
 			return 1;
-
 		}
-
 		else
-
 		{
-
 			walker = walker->next;
-
 		}
-
 	}
-
 	return 0;
-
 }
-
-
 
 int is_internal(struct sr_instance* sr, char *iface)
-
 {
-
 	struct if_cat_list *walker = sr->inter;
-
 	while(walker)
-
 	{
-
 		if(strcmp(walker->name, iface) == 0)
-
 		{
-
 			return 1;
-
 		}
-
 		else
-
 		{
-
 			walker = walker->next;
-
 		}
-
 	}
-
 	return 0;
-
 }
-
-
-
 
 
 void print_rules(struct sr_instance* sr)

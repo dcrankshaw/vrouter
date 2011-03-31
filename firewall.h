@@ -69,5 +69,6 @@ void remove_old_ft_entries(struct sr_instance*);
 int check_connection(struct sr_instance*, struct in_addr, struct in_addr, uint8_t, int, int);
 void print_rules(struct sr_instance*);
 void print_rule_entry(struct rule*);
+void print_if_config(struct sr_instance*);
 
 #endif

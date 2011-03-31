@@ -54,6 +54,7 @@ void sr_init(struct sr_instance* sr)
 	assert(init_rules_table(sr, rules));
 	char *if_config = IFACE_CONFIG;
 	assert(init_if_config(sr, if_config));
+	print_if_config(sr);
 	
 	
 	printf("\n\n");
