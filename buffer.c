@@ -101,10 +101,16 @@ void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 			
 			ps->response = (uint8_t *) res_ip - sizeof(struct sr_ethernet_hdr);
 			struct sr_ethernet_hdr* eth_resp=(struct sr_ethernet_hdr*)ps->response;
-			memmove(eth_resp->ether_dhost,eth->ether_shost,ETHER_ADDR_LEN);
+			memmove(eth_resp->ether_dhost,buf_walker->old_eth->ether_shost,ETHER_ADDR_LEN);
+			
 			memmove(eth_resp->ether_shost,iface->addr, ETHER_ADDR_LEN);
 			eth_resp->ether_type=htons(ETHERTYPE_IP);
 			
+			
+			printf("SR: %p\n", ps->sr);
+			printf("RESPONSE: %p\n", ps->response);
+			printf("RESLEN: %d\n", ps->res_len);
+			printf("IFACE: %p", iface_rt_entry->interface);
 			sr_send_packet(ps->sr, ps->response, ps->res_len, iface_rt_entry->interface);
 			
 		
@@ -161,6 +167,8 @@ struct packet_buffer* delete_from_buffer(struct packet_state* ps, struct packet_
 	    free(walker->interface);
 	if(walker->arp_req)
 	    free(walker->arp_req);
+	if(walker->old_eth)
+	    free(walker->old_eth);
 	if(walker)
 	    free(walker);
 	
@@ -179,7 +187,7 @@ void testing_buffer(struct packet_state * ps)
 }
 */
 /* MADDIE */
-struct packet_buffer * buf_packet(struct packet_state *ps, uint8_t* pac, const struct in_addr dest_ip, const struct sr_if* iface)
+struct packet_buffer * buf_packet(struct packet_state *ps, uint8_t* pac, const struct in_addr dest_ip, const struct sr_if* iface, struct sr_ethernet_hdr *orig_eth)
 {
 	struct packet_buffer* buf_walker=0;
 	
@@ -207,6 +215,8 @@ struct packet_buffer * buf_packet(struct packet_state *ps, uint8_t* pac, const s
 		ps->sr->queue->ip_dst=dest_ip;
 		//time
 		ps->sr->queue->num_arp_reqs=0;
+		ps->sr->queue->old_eth=(struct sr_ethernet_hdr*)malloc(sizeof(struct sr_ethernet_hdr));
+		memmove(ps->sr->queue->old_eth, orig_eth, sizeof(struct sr_ethernet_hdr));
 		return ps->sr->queue;
 	}
 	else
@@ -233,6 +243,8 @@ struct packet_buffer * buf_packet(struct packet_state *ps, uint8_t* pac, const s
 		printf("Buffered Interface name: %s\n", buf_walker->interface);
 		//time
 		buf_walker->num_arp_reqs=0;
+		buf_walker->old_eth=(struct sr_ethernet_hdr*)malloc(sizeof(struct sr_ethernet_hdr));
+		memmove(buf_walker->old_eth, orig_eth, sizeof(struct sr_ethernet_hdr));
 		return buf_walker;
 	}
 	

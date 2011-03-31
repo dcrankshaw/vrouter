@@ -242,7 +242,7 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, struct sr_ethern
 	else
 	{
 		ps->response = newpacket;
-		struct packet_buffer* current = buf_packet(ps,newpacket, new_iphdr->ip_dst,sif);
+		struct packet_buffer* current = buf_packet(ps,newpacket, new_iphdr->ip_dst,sif, eth_rec);
 		ps->response = newpacket;
 		send_request(ps,new_iphdr->ip_dst.s_addr);
 		current->num_arp_reqs=0;
