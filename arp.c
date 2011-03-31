@@ -202,9 +202,6 @@ struct arp_cache_entry* search_cache(struct packet_state* ps,const uint32_t ip)
 	}
 	//IP Address is not in cache
 	printf("The IP address is not in cache.\n");
-	struct in_addr ip_w;
-	ip_w.s_addr=ip;
-	printf("IP ADDRESS Searched for: %s\n", inet_ntoa(ip_w));
 	return NULL;
 }
 
@@ -248,8 +245,6 @@ struct arp_cache_entry* delete_entry(struct packet_state* ps, struct arp_cache_e
 		}
 	}
 	
-	if(walker->mac)
-		free(walker->mac);
 	if(walker)
 		free(walker);
 	if(prev!=NULL)
