@@ -140,10 +140,11 @@ Careful about memory allocation issues with incrementing packet
 				{
 					sr_send_packet(sr, head, current.res_len, interface);
 				}
+				/*
 				else
 				{
 					struct packet_buffer* pb=search_buffer(&current, new_entry->ip_add);
-				}
+				}*/
 				break;
 			default:
 				printf("%x\n", eth->ether_type);
@@ -224,7 +225,8 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, struct sr_ethern
 		return 1;
 		
 	}
-	struct arp_cache_entry *ent = search_cache(ps, new_iphdr->ip_dst.s_addr);
+	struct arp_cache_entry *ent = search_cache(ps, ps->rt_entry->gw.s_addr);
+	printf("Gateway address used to search: %s\n", inet_ntoa(ps->rt_entry->gw));
 	if(ent != NULL)
 	{
 		struct sr_ethernet_hdr *eth = (struct sr_ethernet_hdr *) newpacket;
@@ -238,16 +240,20 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, struct sr_ethern
 		ps->response = newpacket;
 		struct packet_buffer* current = buf_packet(ps,newpacket, new_iphdr->ip_dst,sif);
 		ps->response = newpacket;
-		/*send_request(ps,new_iphdr->ip_dst.s_addr);*/
-		/*current->num_arp_reqs=1;*/
+		send_request(ps,new_iphdr->ip_dst.s_addr);
+		current->num_arp_reqs=0;
 		current->arp_req=(uint8_t*)malloc(ps->res_len);
 		assert(current->arp_req);
 		memmove(current->arp_req, ps->response, ps->res_len);
 		current->arp_len = ps->res_len;
 		struct sr_ethernet_hdr *ether_hdr = (struct sr_ethernet_hdr *)ps->response;
 		
-		
-		sr_send_packet(ps->sr, ps->response, ps->res_len, ps->rt_entry->interface);
+		printf("SHOST ETH HDR: ");
+		DebugMAC(ether_hdr->ether_shost);
+		printf("\nIFACE ADDR: ");
+		struct sr_if* ifcheck=sr_get_interface(ps->sr, ps->rt_entry->interface);
+		DebugMAC(ifcheck->addr);
+		//send_packet(ps->sr, ps->response, ps->res_len, ps->rt_entry->interface);
 		return 0;
 	}
 	return 0;
@@ -274,6 +280,7 @@ int handle_ip(struct packet_state *ps)
 		{
 			/*ps->packet = ps->packet + (ip_hdr->ip_len - sizeof(struct ip));*/
 			printf("struct length: %zu\npacketlength: %u\n", sizeof(struct ip), ntohs(ip_hdr->ip_len));
+			return 0;
 		}
 		int ip_offset = sizeof(struct ip);
 		char *if0 = "eth0";
@@ -431,7 +438,7 @@ int handle_ip(struct packet_state *ps)
 			else /* FORWARD */
 			{
 				update_ip_hdr(ip_hdr);
-				memmove(iph, ip_hdr, ps->len); /*TODO: double check that this is right */
+				memmove(iph, ip_hdr, (ps->len + sizeof(struct ip))); /*TODO: double check that this is right */
 				ps->forward = 1;
 				ps->res_len += ps->len;
 			}

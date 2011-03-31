@@ -17,7 +17,7 @@
 #include "icmp.h"
 
 
-/*Maddie*/
+/*Maddie--prolly don't need*/
 struct packet_buffer* search_buffer(struct packet_state* ps,const uint32_t dest_ip)
 {
 	struct packet_buffer* buf_walker=0;
@@ -25,7 +25,7 @@ struct packet_buffer* search_buffer(struct packet_state* ps,const uint32_t dest_
 	
 	while(buf_walker)
 	{
-		if(buf_walker->ip_dst.s_addr==dest_ip)
+		if(buf_walker->gw_IP==dest_ip)
 		{
 			return buf_walker;
 		}
@@ -37,16 +37,18 @@ struct packet_buffer* search_buffer(struct packet_state* ps,const uint32_t dest_
 /* MADDIE */
 void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 {
-	
+
+	printf("In update buffer.\n");
 	struct packet_buffer* buf_walker=0;
 	buf_walker=queue;
 	
 	while(buf_walker)
 	{
-		uint32_t search_ip=buf_walker->ip_dst.s_addr;
+		uint32_t search_ip=buf_walker->gw_IP;
 		struct arp_cache_entry* ent=search_cache(ps, search_ip);
 		if(ent!=NULL)
 		{
+			printf("Found entry in cache.\n");
 			struct sr_ethernet_hdr *eth = (struct sr_ethernet_hdr *)(buf_walker->packet);
 			memmove(eth->ether_dhost, ent->mac, ETHER_ADDR_LEN);
 			struct sr_if* iface=(struct sr_if*)malloc(sizeof(struct sr_if));
@@ -57,7 +59,7 @@ void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 		}
 		else if(buf_walker->num_arp_reqs < 5)
 		{
-		
+			printf("Sending ARP Request\n");
 			buf_walker->num_arp_reqs++;
 			printf("SENT.");
 			sr_send_packet(ps->sr, buf_walker->arp_req, buf_walker->arp_len, buf_walker->interface);
@@ -65,6 +67,7 @@ void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 		}
 		else
 		{
+			printf("Deleting buf packet and sending ICMP port unreachable\n");
 			int off = sizeof(struct sr_ethernet_hdr) + sizeof(struct ip);
 			ps->res_len=off;
 			ps->response += sizeof(struct sr_ethernet_hdr);
@@ -169,15 +172,20 @@ struct packet_buffer * buf_packet(struct packet_state *ps, uint8_t* pac, const s
 	{
 		ps->sr->queue=(struct packet_buffer*)malloc(sizeof(struct packet_buffer));
 		assert(ps->sr->queue);
+		
 		ps->sr->queue->next=0;
 		ps->sr->queue->packet=(uint8_t*)malloc(ps->res_len);
 		memmove(ps->sr->queue->packet, pac, ps->res_len);
 		ps->sr->queue->pack_len=ps->res_len;
 		printf("BBBB");
 		
+		struct sr_rt* rt_entry=get_routing_if(ps, dest_ip);
+		printf("Interface name: %s\n", rt_entry->interface);
+		ps->sr->queue->gw_IP=rt_entry->gw.s_addr;
 		ps->sr->queue->interface=(char *)malloc(sr_IFACE_NAMELEN);
 		
-		memmove(ps->sr->queue->interface, iface->name, sr_IFACE_NAMELEN); 
+		memmove(ps->sr->queue->interface, rt_entry->interface, sr_IFACE_NAMELEN); 
+		printf("Buffered Interface name: %s\n", ps->sr->queue->interface);
 		ps->sr->queue->ip_dst=dest_ip;
 		//time
 		ps->sr->queue->num_arp_reqs=0;
@@ -201,6 +209,10 @@ struct packet_buffer * buf_packet(struct packet_state *ps, uint8_t* pac, const s
 		buf_walker->interface=(char *)malloc(sr_IFACE_NAMELEN);
 		memmove(buf_walker->interface, iface->name, sr_IFACE_NAMELEN); 
 		buf_walker->ip_dst=dest_ip;
+		/*struct sr_rt* rt_entry=get_routing_if(ps, dest_ip);*/
+		printf("Interface name: %s\n", ps->rt_entry->interface);
+		ps->sr->queue->gw_IP=ps->rt_entry->gw.s_addr;
+		printf("Buffered Interface name: %s\n", buf_walker->interface);
 		//time
 		buf_walker->num_arp_reqs=0;
 		return buf_walker;

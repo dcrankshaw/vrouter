@@ -110,7 +110,7 @@ fp = fopen(filename,"r");
 	}
   return 1;
 	
-
+}
 
 void print_rules(struct sr_instance* sr)
 {

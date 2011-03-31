@@ -137,6 +137,8 @@ struct arp_cache_entry* got_Reply(struct packet_state * ps, struct sr_arphdr * a
 
 void add_cache_entry(struct packet_state* ps,const uint32_t ip, const unsigned char* mac)
 {
+	if(search_cache(ps, ip)==NULL)
+	{
 	struct arp_cache_entry* cache_walker=0;
 
 	assert(ps);
@@ -174,6 +176,7 @@ void add_cache_entry(struct packet_state* ps,const uint32_t ip, const unsigned c
 	cache_walker->next=0;
 	print_cache(ps->sr);
 	}
+	}
 
 }
 
@@ -195,7 +198,10 @@ struct arp_cache_entry* search_cache(struct packet_state* ps,const uint32_t ip)
 			cache_walker=cache_walker->next;
 	}
 	//IP Address is not in cache
-	printf("The IP address is not in cache.");
+	printf("The IP address is not in cache.\n");
+	struct in_addr ip_w;
+	ip_w.s_addr=ip;
+	printf("IP ADDRESS Searched for: %s\n", inet_ntoa(ip_w));
 	return NULL;
 }
 
@@ -231,8 +237,10 @@ void delete_entry(struct packet_state* ps, struct arp_cache_entry* want_deleted)
 			walker=walker->next;
 		}
 	}
-	free(walker->mac);
-	free(walker);
+	if(walker->mac != NULL)
+		free(walker->mac);
+	if(walker !=NULL)
+		free(walker);
 	
 }
 
@@ -307,39 +315,24 @@ void send_request(struct packet_state* ps, const uint32_t dest_ip)
 	
 	/* figure out which interface to send from */
 	struct in_addr ip_d;
-<<<<<<< HEAD
-//ip_d.s_addr=dest_ip;
-=======
-	//ip_d.s_addr=dest_ip;
->>>>>>> 38b476c3ec9cf5c31d3da974539941bb6c675933
-	/*char* print_addr = (char*) malloc(50);
-	inet_ntop(AF_INET, &dest_ip, print_addr, INET_ADDRSTRLEN);
-	printf("\nAddress to find corresponding iface for: %s\n", print_addr);
-	free(print_addr);*/
+	ip_d.s_addr=dest_ip;
 	struct sr_rt* iface_rt_entry=get_routing_if(ps, ip_d);
-	/*printf("\nIFACE: %s\n", iface_rt_entry->interface);*/
 	struct sr_if* iface=sr_get_interface(ps->sr, iface_rt_entry->interface);
 	assert(iface);
-<<<<<<< HEAD
-	
-	ip_d.s_addr=iface_rt_entry->gw.s_addr;
-	
-=======
-	ip_d.s_addr = iface_rt_entry->gw.s_addr;
->>>>>>> 38b476c3ec9cf5c31d3da974539941bb6c675933
+
 	memmove(request->ar_sha, iface->addr, ETHER_ADDR_LEN);
 	request->ar_sip=iface->ip;
-	
-	/*printf("\nIface addr in arp.c send_request(): ");
-	printf("%x:%x:%x:%x:%x:%x \n",iface->addr[0],iface->addr[1],iface->addr[2],
-	iface->addr[3],iface->addr[4],iface->addr[5]);*/
 	
 	int i=0;
 	for(i=0; i<ETHER_ADDR_LEN; i++)
 	{
 		request->ar_tha[i]=0x00;
 	}
-	request->ar_tip=dest_ip;
+	request->ar_tip=iface_rt_entry->gw.s_addr;
+	struct in_addr check;
+	check.s_addr=request->ar_tip;
+	printf("ARP Source IP: %s Gateway IP: %s\n",inet_ntoa(check), inet_ntoa(iface_rt_entry->gw));
+	
 	
 	//ARP Constructed, Now Add Ethernet Header
 	struct sr_ethernet_hdr* new_eth;
@@ -350,7 +343,6 @@ void send_request(struct packet_state* ps, const uint32_t dest_ip)
 	{
 		new_eth->ether_dhost[i]=0xff;
 	}
-	request->ar_tip=dest_ip;
 	
 	new_eth->ether_type=htons(ETHERTYPE_ARP);
 	
