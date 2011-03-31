@@ -351,6 +351,7 @@ void remove_old_ft_entries(struct sr_instance* sr)
   int maxTTL = MAX_ENTRY_TTL;
 
   ft_walker = sr->flow_table;
+  print_ft(sr);
   while(ft_walker)
   {
   	if((cur - ft_walker->creation_time > ft_walker->ttl) || (ft_walker->ttl > maxTTL))
@@ -366,11 +367,15 @@ void remove_old_ft_entries(struct sr_instance* sr)
   		}
   		else if(!ft_walker->next)
   		{
-			
+			/*
 			prev->next=NULL;
 			sr->ft_size--;
 			if(ft_walker)
 				free(ft_walker);
+				*/
+				free(prev->next);
+				sr->ft_size--;
+				ft_walker = 0;
 		}
 		else
 		{
@@ -389,32 +394,6 @@ void remove_old_ft_entries(struct sr_instance* sr)
 	
   }
   
-  
-  
-  /*if(sr->flow_table != 0)
-  {
-		ft_walker = sr->flow_table;
-		if((cur - ft_walker->creation_time - ft_walker->ttl) < maxTTL)
-		{
-			sr->flow_table = ft_walker->next;
-			free(ft_walker);
-			sr->ft_size--;
-			if(
-			ft_walker = sr->flow_table;
-		}
-		while(ft_walker->next)
-		{
-			// ft_walker = ft_walker->next;
-			if((cur - ft_walker->next->creation_time - ft_walker->next->ttl) < maxTTL)
-			{
-				struct ft* del = 0;
-				del = ft_walker->next;
-				ft_walker->next = ft_walker->next->next;
-				free(del);
-				sr->ft_size--;
-			}
-		}
-	}*/
 } /* end remove_old_ft_entries() */
 
 /* returns 1 if the connection is valid, returns 0 if the connection is invalid */
