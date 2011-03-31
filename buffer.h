@@ -29,6 +29,7 @@ struct packet_buffer
 	struct in_addr ip_dst;
 	struct packet_buffer *next;
 	int num_arp_reqs; 	/* The number of arp requests already sent. */
+	uint32_t gw_IP;
 };
 
 

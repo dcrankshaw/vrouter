@@ -368,6 +368,10 @@ void remove_old_ft_entries(struct sr_instance* sr)
 /* returns 1 if the connection is valid, returns 0 if the connection is invalid */
 int check_connection(struct sr_instance* sr, struct in_addr srcIP, struct in_addr dstIP, uint8_t IPprotocol, int srcPort, int dstPort)
 {
+    if(rule_contains(sr, srcIP, dstIP, IPprotocol, srcPort, dstPort) == 1)
+    {
+      return 1;
+    }
   if(ft_contains(sr, srcIP, dstIP, IPprotocol, srcPort, dstPort) == 1)
     {
       return 1;
@@ -376,9 +380,6 @@ int check_connection(struct sr_instance* sr, struct in_addr srcIP, struct in_add
     {
       return 1;
     }
-  if(rule_contains(sr, srcIP, dstIP, IPprotocol, srcPort, dstPort) == 1)
-    {
-      return 1;
-    }
+
   return 0;
 } /* end check_connection() */

@@ -237,8 +237,8 @@ void delete_entry(struct packet_state* ps, struct arp_cache_entry* want_deleted)
 			walker=walker->next;
 		}
 	}
-	if(walker->mac != NULL)
-		free(walker->mac);
+/*	if(walker->mac != NULL)
+		free(walker->mac);*/
 	if(walker !=NULL)
 		free(walker);
 	
