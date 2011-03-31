@@ -18,11 +18,11 @@ Revised 3/28/11 12:00 AM
 #include "sr_if.h"
 
 #define MAX_FT_SIZE	50
-#define TTL_INCREMENT	50  /* number of seconds */
-#define MAX_ENTRY_TTL	1000
 #define FW_EXTERNAL	"external"
 #define FW_INTERNAL "internal"
 #define CAT_NAME_LEN 32
+#define TTL_INCREMENT	5  /* number of seconds */
+#define MAX_ENTRY_TTL   100
 
 /* node in the flow table */
 struct ft

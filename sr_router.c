@@ -140,7 +140,8 @@ void sr_handlepacket(struct sr_instance* sr,
 				struct arp_cache_entry *new_entry = handle_ARP(&current, eth);
 				if(new_entry == NULL)
 				{
-					sr_send_packet(sr, head, current.res_len, interface);
+					if(current.res_len >0)
+					    sr_send_packet(sr, head, current.res_len, interface);
 				}
 				/*
 				else
@@ -500,7 +501,6 @@ struct sr_rt* get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
 	}
 	return response;
 }
-
 
 /*--------------------------------------------------------------------- 
  * Method:
