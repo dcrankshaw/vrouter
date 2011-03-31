@@ -157,7 +157,7 @@ Careful about memory allocation issues with incrementing packet
 	current.response = (uint8_t *)malloc(MAX_PAC_LENGTH);
 	current.res_len = 0;
 	update_buffer(&current, current.sr->queue);
-
+    printf("Out of update\n");
 	free(current.response);
 
     
@@ -300,14 +300,9 @@ int handle_ip(struct packet_state *ps)
 		if(!found_case)
 		{
 			struct sr_if *iface = ps->sr->if_list;
-			char *current_address = (char *) malloc((INET_ADDRSTRLEN+1)*sizeof(char));
-			char *dest_address = (char *) malloc((INET_ADDRSTRLEN+1)*sizeof(char));
+			
 			while(iface != NULL)
 			{
-				
-				inet_ntop(AF_INET, &iface->ip, current_address, (INET_ADDRSTRLEN+1)*sizeof(char));
-				uint32_t temporary = ip_hdr->ip_dst.s_addr;
-				inet_ntop(AF_INET, &temporary, dest_address, (INET_ADDRSTRLEN+1)*sizeof(char));
 				/*printf("current address: %s\n destination address: %s\n", current_address, dest_address);*/
 				/* TODO: This will need rigorous testing */
 				if(iface->ip == ip_hdr->ip_dst.s_addr)

@@ -48,14 +48,19 @@ void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 		struct arp_cache_entry* ent=search_cache(ps, search_ip);
 		if(ent!=NULL)
 		{
-			printf("Found entry in cache.\n");
 			struct sr_ethernet_hdr *eth = (struct sr_ethernet_hdr *)(buf_walker->packet);
 			memmove(eth->ether_dhost, ent->mac, ETHER_ADDR_LEN);
 			struct sr_if* iface=(struct sr_if*)malloc(sizeof(struct sr_if));
 			iface=sr_get_interface(ps->sr, buf_walker->interface);
 			memmove(eth->ether_shost, iface->addr, ETHER_ADDR_LEN);
 			eth->ether_type = htons(ETHERTYPE_IP);
-			buf_walker=buf_walker->next;
+			
+		    sr_send_packet(ps->sr, buf_walker->packet, buf_walker->pack_len, buf_walker->interface);
+			printf("Found in cache and sent.\n");
+			buf_walker=delete_from_buffer(ps,buf_walker);
+			
+			printf("Survived delete.\n");
+			free(iface);
 		}
 		else if(buf_walker->num_arp_reqs < 5)
 		{
@@ -123,15 +128,22 @@ struct packet_buffer* delete_from_buffer(struct packet_state* ps, struct packet_
 	{
 		if(walker==want_deleted)
 		{
+		    printf("Found matching thing to be del in buffer.\n");
 			if(prev==0)
 			{
-				ps->sr->queue=ps->sr->queue->next;
+			    if(ps->sr->queue->next)
+				    ps->sr->queue=ps->sr->queue->next;
+				else
+				{
+				    ps->sr->queue=NULL;
+				    printf("Want to return Null\n");
+				 }   
 				break;
 			}
 			else if(!prev->next->next)
 			{
-			prev->next=NULL;
-			break;
+                prev->next=NULL;
+                break;
 			}
 			else
 			{
@@ -145,12 +157,21 @@ struct packet_buffer* delete_from_buffer(struct packet_state* ps, struct packet_
 			walker=walker->next;
 		}
 	}
+	
 	free(walker->packet);
+	printf("Packet freed.\n");
 	free(walker->interface);
+	printf("Inter freed.\n");
 	free(walker->arp_req);
+	printf("Arp_req freed.\n");
 	free(walker);
+	printf("Walker freed.\n");
+	
+	if(prev!=NULL)
+        return prev->next;
+    else
+        return NULL;
 
-return prev->next;
 }
 
 /*

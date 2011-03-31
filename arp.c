@@ -139,43 +139,42 @@ void add_cache_entry(struct packet_state* ps,const uint32_t ip, const unsigned c
 {
 	if(search_cache(ps, ip)==NULL)
 	{
-	struct arp_cache_entry* cache_walker=0;
-
-	assert(ps);
-	assert(mac);
-	assert(ip);
-
-	if(ps->sr->arp_cache ==0)	/*If there are no entries in cache */
-	{
-		ps->sr->arp_cache=(struct arp_cache_entry*)malloc(sizeof(struct arp_cache_entry));
-		assert(ps->sr->arp_cache);
-		ps->sr->arp_cache->next=0;
-		ps->sr->arp_cache->ip_add=ip;
-		memcpy(ps->sr->arp_cache->mac, mac,ETHER_ADDR_LEN);
-		ps->sr->arp_cache->timenotvalid=time(NULL) +15;	/* Each cache entry is valid for 15 seconds */
-		print_cache_entry(ps->sr->arp_cache);
-	}
-	else
-	{
-		cache_walker = ps->sr->arp_cache;
-		while(cache_walker->next)
-		{
-			if(cache_walker->timenotvalid < time(NULL))
-			{
-				delete_entry(ps,cache_walker);
-				cache_walker=cache_walker->next;
-			}
-		cache_walker=cache_walker->next;
-		}
-	cache_walker->next=(struct arp_cache_entry*)malloc(sizeof(struct arp_cache_entry));
-	assert(cache_walker->next);
-	cache_walker=cache_walker->next;
-	cache_walker->ip_add=ip;
-	memcpy(cache_walker->mac, mac,ETHER_ADDR_LEN);
-	cache_walker->timenotvalid=time(NULL) +15;	/* Each cache entry is valid for 15 seconds */
-	cache_walker->next=0;
-	print_cache(ps->sr);
-	}
+        struct arp_cache_entry* cache_walker=0;
+    
+        assert(ps);
+        assert(mac);
+        assert(ip);
+    
+        if(ps->sr->arp_cache ==0)	/*If there are no entries in cache */
+        {
+            ps->sr->arp_cache=(struct arp_cache_entry*)malloc(sizeof(struct arp_cache_entry));
+            assert(ps->sr->arp_cache);
+            ps->sr->arp_cache->next=0;
+            ps->sr->arp_cache->ip_add=ip;
+            memcpy(ps->sr->arp_cache->mac, mac,ETHER_ADDR_LEN);
+            ps->sr->arp_cache->timenotvalid=time(NULL) +15;	/* Each cache entry is valid for 15 seconds */
+        }
+        else
+        {
+            cache_walker = ps->sr->arp_cache;
+            while(cache_walker->next)
+            {
+                if(cache_walker->timenotvalid < time(NULL))
+                {
+                    delete_entry(ps,cache_walker);
+                    cache_walker=cache_walker->next;
+                }
+                cache_walker=cache_walker->next;
+            }
+            cache_walker->next=(struct arp_cache_entry*)malloc(sizeof(struct arp_cache_entry));
+            assert(cache_walker->next);
+            cache_walker=cache_walker->next;
+            cache_walker->ip_add=ip;
+            memcpy(cache_walker->mac, mac,ETHER_ADDR_LEN);
+            cache_walker->timenotvalid=time(NULL) +15;	/* Each cache entry is valid for 15 seconds */
+            cache_walker->next=0;
+            free(cache_walker);
+        }
 	}
 
 }
@@ -202,6 +201,8 @@ struct arp_cache_entry* search_cache(struct packet_state* ps,const uint32_t ip)
 	struct in_addr ip_w;
 	ip_w.s_addr=ip;
 	printf("IP ADDRESS Searched for: %s\n", inet_ntoa(ip_w));
+	if(cache_walker!=NULL)
+	    free(cache_walker);
 	return NULL;
 }
 
@@ -237,9 +238,7 @@ void delete_entry(struct packet_state* ps, struct arp_cache_entry* want_deleted)
 			walker=walker->next;
 		}
 	}
-/*	if(walker->mac != NULL)
-		free(walker->mac);*/
-	if(walker !=NULL)
+	    free(walker->mac);
 		free(walker);
 	
 }
