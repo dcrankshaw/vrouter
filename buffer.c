@@ -243,8 +243,8 @@ struct packet_buffer * buf_packet(struct packet_state *ps, uint8_t* pac, const s
 		printf("Buffered Interface name: %s\n", buf_walker->interface);
 		//time
 		buf_walker->num_arp_reqs=0;
-		ps->sr->queue->old_eth=(struct sr_ethernet_hdr*)malloc(sizeof(struct sr_ethernet_hdr));
-		memmove(ps->sr->queue->old_eth, orig_eth, sizeof(struct sr_ethernet_hdr));
+		buf_walker->old_eth=(struct sr_ethernet_hdr*)malloc(sizeof(struct sr_ethernet_hdr));
+		memmove(buf_walker->old_eth, orig_eth, sizeof(struct sr_ethernet_hdr));
 		return buf_walker;
 	}
 	

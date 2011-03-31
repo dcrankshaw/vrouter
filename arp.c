@@ -128,6 +128,9 @@ void testing(struct packet_state* ps, struct sr_arphdr *arp)
 struct arp_cache_entry* got_Reply(struct packet_state * ps, struct sr_arphdr * arp, const struct sr_ethernet_hdr* eth)
 {
 	//Add IP and address to cache
+	struct in_addr in_ip;
+	in_ip.s_addr=arp->ar_sip;
+	printf("Got reply from %s\n", inet_ntoa(in_ip));
 	add_cache_entry(ps, arp->ar_sip, arp->ar_sha);
 	
 	//Return newly added entry
@@ -175,8 +178,6 @@ void add_cache_entry(struct packet_state* ps,const uint32_t ip, const unsigned c
             memcpy(cache_walker->mac, mac,ETHER_ADDR_LEN);
             cache_walker->timenotvalid=time(NULL) +15;	/* Each cache entry is valid for 15 seconds */
             cache_walker->next=0;
-            if(cache_walker)
-            	free(cache_walker);
         }
 	}
 
@@ -188,7 +189,10 @@ struct arp_cache_entry* search_cache(struct packet_state* ps,const uint32_t ip)
 	cache_walker=ps->sr->arp_cache;
 	while(cache_walker != 0)
 	{
-		if(cache_walker->timenotvalid < time(NULL))
+	    print_cache_entry(cache_walker);
+	    time_t curr_time=time(NULL);
+	    printf("Curr time: %d\n", curr_time);
+		if(cache_walker->timenotvalid > curr_time)
 		{
 			if(ip==cache_walker->ip_add)
 				return cache_walker;
@@ -207,6 +211,7 @@ struct arp_cache_entry* search_cache(struct packet_state* ps,const uint32_t ip)
 
 struct arp_cache_entry* delete_entry(struct packet_state* ps, struct arp_cache_entry* want_deleted)
 {
+    print_cache(ps->sr);
 	struct arp_cache_entry* prev=0;
 	struct arp_cache_entry* walker=0;
 	walker=ps->sr->arp_cache;
@@ -227,14 +232,14 @@ struct arp_cache_entry* delete_entry(struct packet_state* ps, struct arp_cache_e
 				}
 				break;
 			}
-			else if(!prev->next->next)
+			else if(!walker->next)
 			{
-			prev->next=NULL;
-			break;
+                prev->next=NULL;
+                break;
 			}
 			else
 			{
-				prev->next=prev->next->next;
+				prev->next=walker->next;
 				break;
 			}
 		}
@@ -244,6 +249,8 @@ struct arp_cache_entry* delete_entry(struct packet_state* ps, struct arp_cache_e
 			walker=walker->next;
 		}
 	}
+	printf("DELETED SOMETHING!!!!!!!\n");
+	print_cache(ps->sr);
 	
 	if(walker)
 		free(walker);
