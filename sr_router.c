@@ -151,14 +151,16 @@ Careful about memory allocation issues with incrementing packet
 		}
 		
 	}
-
-	free(head);
-	free(perm_eth);
+    if(head)
+	    free(head);
+	if(perm_eth)
+	    free(perm_eth);
 	current.response = (uint8_t *)malloc(MAX_PAC_LENGTH);
 	current.res_len = 0;
 	update_buffer(&current, current.sr->queue);
     printf("Out of update\n");
-	free(current.response);
+    if(current.response)
+	    free(current.response);
 
     
 }/* end sr_ForwardPacket */
@@ -185,8 +187,10 @@ int test_ip_gen(uint8_t *packet, unsigned int len, char *interface)
 	inet_ntop(AF_INET, &temporary, dest_address, (INET_ADDRSTRLEN+1)*sizeof(char));
 	temporary = ip_hdr->ip_src.s_addr;
 	inet_ntop(AF_INET, &temporary, current_address, (INET_ADDRSTRLEN+1)*sizeof(char));
-	free(current_address);
-	free(dest_address);
+	if(current_address)
+	    free(current_address);
+	if(dest_address)
+	    free(dest_address);
 	
 	printf("\n\nICMP HEADER:\ntype: %u, code %u, sum: %u\n\n\n", icmp->icmp_type, icmp->icmp_code, icmp->icmp_sum);*/
 	return 0;

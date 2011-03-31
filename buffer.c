@@ -155,15 +155,14 @@ struct packet_buffer* delete_from_buffer(struct packet_state* ps, struct packet_
 			walker=walker->next;
 		}
 	}
-	
-	free(walker->packet);
-	printf("Packet freed.\n");
-	free(walker->interface);
-	printf("Inter freed.\n");
-	free(walker->arp_req);
-	printf("Arp_req freed.\n");
-	free(walker);
-	printf("Walker freed.\n");
+	if(walker->packet)
+	    free(walker->packet);
+	if(walker->interface)
+	    free(walker->interface);
+	if(walker->arp_req)
+	    free(walker->arp_req);
+	if(walker)
+	    free(walker);
 	
 	if(prev!=NULL)
         return prev->next;
