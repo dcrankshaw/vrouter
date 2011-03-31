@@ -346,36 +346,47 @@ void remove_old_ft_entries(struct sr_instance* sr)
 {
   struct ft* ft_walker = 0;
   struct ft* prev = 0;
+  struct ft* del = 0;
   time_t cur = time(NULL);
   int maxTTL = MAX_ENTRY_TTL;
 
   ft_walker = sr->flow_table;
   while(ft_walker)
   {
-  	if((cur - ft_walker->creation_time - ft_walker->ttl) < maxTTL)
+  	if((cur - ft_walker->creation_time > ft_walker->ttl) || (ft_walker->ttl > maxTTL))
   	{
   		if(prev == 0)
   		{
+  			del = ft_walker;
   			sr->flow_table = sr->flow_table->next;
-  			break;
+  			ft_walker = sr->flow_table;
+  			sr->ft_size--;
+  			free(del);
   		}
-  		else if(!prev->next->next)
+  		else if(!ft_walker->next)
   		{
+			
 			prev->next=NULL;
-			break;
+			sr->ft_size--;
+			free(ft_walker);
 		}
 		else
 		{
-			prev->next=prev->next->next;
-			break;
+			prev->next=ft_walker->next;
+			sr->ft_size--;
+			free(ft_walker);
+			ft_walker = prev->next;
 		}
-		}
+	}
 	else
 	{
 		prev=ft_walker;
 		ft_walker=ft_walker->next;
 	}
+	
   }
+  
+  
   
   /*if(sr->flow_table != 0)
   {

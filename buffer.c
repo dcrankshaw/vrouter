@@ -50,8 +50,7 @@ void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 		{
 			struct sr_ethernet_hdr *eth = (struct sr_ethernet_hdr *)(buf_walker->packet);
 			memmove(eth->ether_dhost, ent->mac, ETHER_ADDR_LEN);
-			struct sr_if* iface=(struct sr_if*)malloc(sizeof(struct sr_if));
-			iface=sr_get_interface(ps->sr, buf_walker->interface);
+			struct sr_if *iface=sr_get_interface(ps->sr, buf_walker->interface);
 			memmove(eth->ether_shost, iface->addr, ETHER_ADDR_LEN);
 			eth->ether_type = htons(ETHERTYPE_IP);
 			
@@ -60,7 +59,6 @@ void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 			buf_walker=delete_from_buffer(ps,buf_walker);
 			
 			printf("Survived delete.\n");
-			free(iface);
 		}
 		else if(buf_walker->num_arp_reqs < 5)
 		{

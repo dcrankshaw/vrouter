@@ -161,10 +161,12 @@ void add_cache_entry(struct packet_state* ps,const uint32_t ip, const unsigned c
             {
                 if(cache_walker->timenotvalid < time(NULL))
                 {
-                    delete_entry(ps,cache_walker);
-                    cache_walker=cache_walker->next;
+                    cache_walker = delete_entry(ps,cache_walker);
                 }
-                cache_walker=cache_walker->next;
+                else
+                {
+               		cache_walker=cache_walker->next;
+               	}	
             }
             cache_walker->next=(struct arp_cache_entry*)malloc(sizeof(struct arp_cache_entry));
             assert(cache_walker->next);
@@ -183,30 +185,29 @@ struct arp_cache_entry* search_cache(struct packet_state* ps,const uint32_t ip)
 {
 	struct arp_cache_entry* cache_walker=0;
 	cache_walker=ps->sr->arp_cache;
-	while(cache_walker)
+	while(cache_walker != 0)
 	{
-		if(cache_walker->timenotvalid > time(NULL))
+		if(cache_walker->timenotvalid < time(NULL))
 		{
-		if(ip==cache_walker->ip_add)
-			return cache_walker;
+			if(ip==cache_walker->ip_add)
+				return cache_walker;
+			else
+				cache_walker = cache_walker->next;
 		}
 		else
 		{
-			delete_entry(ps, cache_walker);
+			cache_walker = delete_entry(ps, cache_walker);
 		}
-			cache_walker=cache_walker->next;
 	}
 	//IP Address is not in cache
 	printf("The IP address is not in cache.\n");
 	struct in_addr ip_w;
 	ip_w.s_addr=ip;
 	printf("IP ADDRESS Searched for: %s\n", inet_ntoa(ip_w));
-	if(cache_walker!=NULL)
-	    free(cache_walker);
 	return NULL;
 }
 
-void delete_entry(struct packet_state* ps, struct arp_cache_entry* want_deleted)
+struct arp_cache_entry* delete_entry(struct packet_state* ps, struct arp_cache_entry* want_deleted)
 {
 	struct arp_cache_entry* prev=0;
 	struct arp_cache_entry* walker=0;
@@ -218,7 +219,14 @@ void delete_entry(struct packet_state* ps, struct arp_cache_entry* want_deleted)
 		{
 			if(prev==0)
 			{
-				ps->sr->arp_cache=ps->sr->arp_cache->next;
+				if(ps->sr->arp_cache->next)
+				{
+					ps->sr->arp_cache=ps->sr->arp_cache->next;
+				}	
+				else
+				{
+					ps->sr->arp_cache = NULL;
+				}
 				break;
 			}
 			else if(!prev->next->next)
@@ -238,8 +246,12 @@ void delete_entry(struct packet_state* ps, struct arp_cache_entry* want_deleted)
 			walker=walker->next;
 		}
 	}
-	    free(walker->mac);
-		free(walker);
+	
+	free(walker->mac);
+	free(walker);
+	if(prev!=NULL)
+		return prev->next;
+	return NULL;
 	
 }
 
