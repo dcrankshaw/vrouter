@@ -249,13 +249,17 @@ int add_ft_entry(struct sr_instance* sr, struct in_addr srcIP, struct in_addr ds
 int ft_contains(struct sr_instance* sr, struct in_addr srcIP, struct in_addr dstIP, uint8_t IPprotocol, int srcPort, int dstPort)
 {
 	struct ft* ft_walker = 0;
-  
-	ft_walker = sr->flow_table;
+  	int maxTTL = MAX_ENTRY_TTL;
+  	ft_walker = sr->flow_table;
   	while(ft_walker)
     {
       
     	if((ft_walker->srcIP.s_addr == srcIP.s_addr) && (ft_walker->dstIP.s_addr == dstIP.s_addr) && (ft_walker->IPprotocol == IPprotocol) && (ft_walker->srcPort == srcPort) && (ft_walker->dstPort == dstPort))
 		{
+	  		if(ft_walker->ttl > maxTTL)
+	  		{
+	  			return 0;
+	  		}
 	  		ft_walker->ttl += TTL_INCREMENT;
 	  		return 1;
 		}
@@ -341,34 +345,68 @@ void print_ft_entry(struct ft* entry)
 void remove_old_ft_entries(struct sr_instance* sr)
 {
   struct ft* ft_walker = 0;
+  struct ft* prev = 0;
   time_t cur = time(NULL);
   int maxTTL = MAX_ENTRY_TTL;
 
   ft_walker = sr->flow_table;
-  if((cur - ft_walker->creation_time - ft_walker->ttl) < maxTTL)
-    {
-      sr->flow_table = ft_walker->next;
-      free(ft_walker);
-      sr->ft_size--;
-    }
-  while(ft_walker->next)
-    {
-      // ft_walker = ft_walker->next;
-      if((cur - ft_walker->next->creation_time - ft_walker->next->ttl) < maxTTL)
+  while(ft_walker)
+  {
+  	if((cur - ft_walker->creation_time - ft_walker->ttl) < maxTTL)
+  	{
+  		if(prev == 0)
+  		{
+  			sr->flow_table = sr->flow_table->next;
+  			break;
+  		}
+  		else if(!prev->next->next)
+  		{
+			prev->next=NULL;
+			break;
+		}
+		else
+		{
+			prev->next=prev->next->next;
+			break;
+		}
+		}
+	else
 	{
-	  struct ft* del = 0;
-	  del = ft_walker->next;
-	  ft_walker->next = ft_walker->next->next;
-	  free(del);
-	  sr->ft_size--;
+		prev=ft_walker;
+		ft_walker=ft_walker->next;
 	}
-    }
+  }
+  
+  /*if(sr->flow_table != 0)
+  {
+		ft_walker = sr->flow_table;
+		if((cur - ft_walker->creation_time - ft_walker->ttl) < maxTTL)
+		{
+			sr->flow_table = ft_walker->next;
+			free(ft_walker);
+			sr->ft_size--;
+			if(
+			ft_walker = sr->flow_table;
+		}
+		while(ft_walker->next)
+		{
+			// ft_walker = ft_walker->next;
+			if((cur - ft_walker->next->creation_time - ft_walker->next->ttl) < maxTTL)
+			{
+				struct ft* del = 0;
+				del = ft_walker->next;
+				ft_walker->next = ft_walker->next->next;
+				free(del);
+				sr->ft_size--;
+			}
+		}
+	}*/
 } /* end remove_old_ft_entries() */
 
 /* returns 1 if the connection is valid, returns 0 if the connection is invalid */
 int check_connection(struct sr_instance* sr, struct in_addr srcIP, struct in_addr dstIP, uint8_t IPprotocol, int srcPort, int dstPort)
 {
-    if(rule_contains(sr, srcIP, dstIP, IPprotocol, srcPort, dstPort) == 1)
+	if(rule_contains(sr, srcIP, dstIP, IPprotocol, srcPort, dstPort) == 1)
     {
       return 1;
     }
@@ -381,5 +419,5 @@ int check_connection(struct sr_instance* sr, struct in_addr srcIP, struct in_add
       return 1;
     }
 
-  return 0;
+  return 1;
 } /* end check_connection() */
