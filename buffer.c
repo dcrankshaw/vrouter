@@ -149,8 +149,9 @@ struct packet_buffer* delete_from_buffer(struct packet_state* ps, struct packet_
 	free(walker->interface);
 	free(walker->arp_req);
 	free(walker);
-
-return prev->next;
+	if(prev != 0)
+		return prev->next;
+	return prev;
 }
 
 /*
