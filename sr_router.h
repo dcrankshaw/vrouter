@@ -59,6 +59,8 @@ struct sr_instance
     struct ft* flow_table;
     struct rule* rule_table;
     int ft_size;
+    struct if_cat_list* inter;
+    struct if_cat_list* exter;
 };
 
 /* -----------------------------------------------------------------------
@@ -81,18 +83,6 @@ struct packet_state
 	short forward;			/* 1 if forwarding, 0 if return to sender */
 };
 
-
-/* KEEPING THIS OR GOING IN INSTANCE?? */
-struct flow_control
-{
-	struct in_addr src_ip;
-	struct in_addr dst_ip;
-	int ip_p; 				/*The IP protocol */
-	char *src_port;
-	char *dst_port;
-	struct flow_control* next;
-};
-
 /* -- sr_main.c -- */
 int sr_verify_routing_table(struct sr_instance* sr);
 
@@ -110,7 +100,6 @@ struct sr_rt* get_routing_if(struct packet_state*, struct in_addr);
 void leave_hdr_room(struct packet_state *, int);
 int create_eth_hdr(uint8_t *, struct packet_state *, struct sr_ethernet_hdr *);
 uint16_t cksum(uint8_t *, int);
-int test_ip_gen(uint8_t *, unsigned int , char *);
 
 
 /* -- sr_if.c -- */

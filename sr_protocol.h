@@ -149,6 +149,10 @@ struct sr_ethernet_hdr
 #define ICMPC_PORTUN	3
 #endif
 
+#ifndef ICMPC_HOSTUN
+#define ICMPC_HOSTUN	1
+#endif
+
 #ifndef ICMPC_INTRANSIT
 #define ICMPC_INTRANSIT	0
 #endif

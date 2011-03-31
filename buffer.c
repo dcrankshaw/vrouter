@@ -78,11 +78,11 @@ void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 			ps->response += sizeof(struct ip);
 			ps->packet = buf_walker->packet;
 			
-			struct sr_ethernet_hdr* eth=(struct sr_ethernet_hdr*)(ps->packet);
+			/*struct sr_ethernet_hdr* eth=(struct sr_ethernet_hdr*)(ps->packet);*/
 			ps->packet += sizeof(struct sr_ethernet_hdr);
 			struct ip *ip_hdr = (struct ip*) (ps->packet);
 			ps->packet += sizeof(struct ip);
-			icmp_response(ps, ip_hdr, ICMPT_DESTUN, ICMPC_PORTUN);
+			icmp_response(ps, ip_hdr, ICMPT_DESTUN, ICMPC_HOSTUN);
 			memmove(res_ip, ip_hdr, sizeof(struct ip));
 			res_ip->ip_len = htons(ps->res_len - sizeof(struct sr_ethernet_hdr));
 			res_ip->ip_ttl = INIT_TTL;

@@ -28,6 +28,7 @@
 #include "buffer.h"
 
 #define DEF_RULE_TABLE "rules"
+#define IFACE_CONFIG	"if_config"
 
 /*--------------------------------------------------------------------- 
  * Method: sr_init(void)
@@ -47,8 +48,14 @@ void sr_init(struct sr_instance* sr)
 	sr->flow_table = 0;
 	sr->rule_table = 0;
 	sr->ft_size = 0;
+	sr->exter = 0;
+	sr->inter = 0;
 	char* rules = DEF_RULE_TABLE;
-	init_rules_table(sr, rules);
+	assert(init_rules_table(sr, rules));
+	char *if_config = IFACE_CONFIG;
+	assert(init_if_config(sr, if_config));
+	
+	
 	printf("\n\n");
 	print_rules(sr);
 	printf("\n\n");
@@ -83,12 +90,7 @@ void sr_handlepacket(struct sr_instance* sr,
     assert(sr);
     assert(packet);
     assert(interface);
-    unsigned int orig_len = len;
 
-/*********************************************************
-Careful about memory allocation issues with incrementing packet
-
-***********************************************************/
     printf("\n*** -> Received packet of length %d \n",len);
     
 	struct packet_state current;
@@ -155,49 +157,15 @@ Careful about memory allocation issues with incrementing packet
 	    free(head);
 	if(perm_eth)
 	    free(perm_eth);
+	/* Reset the response packet for updating the packet buffer */    
 	current.response = (uint8_t *)malloc(MAX_PAC_LENGTH);
 	current.res_len = 0;
 	update_buffer(&current, current.sr->queue);
-    printf("Out of update\n");
     if(current.response)
 	    free(current.response);
 
     
 }/* end sr_ForwardPacket */
-
-int test_ip_gen(uint8_t *packet, unsigned int len, char *interface)
-{
-	/*int hdr_len = sizeof(struct sr_ethernet_hdr) + sizeof(struct ip) + sizeof(struct icmp_hdr);
-	if(len < hdr_len)
-	{
-		printf("packet too short");
-		return 0;
-	}
-	struct sr_ethernet_hdr *eth = (struct sr_ethernet_hdr *) packet;
-	packet += sizeof(struct sr_ethernet_hdr);
-	struct ip *ip_hdr = (struct ip *) packet;
-	packet += sizeof(struct ip);
-	struct icmp_hdr *icmp = (struct icmp_hdr *) packet;
-	printf("hl: %u, version: %u, type: %u, len: %u, id: %u, ttl: %u, prot: %u, sum %u",
-		ip_hdr->ip_hl, ip_hdr->ip_v, ip_hdr->ip_tos, ip_hdr->ip_len, ip_hdr->ip_id,
-		ip_hdr->ip_ttl, ip_hdr->ip_p, ip_hdr->ip_sum);
-	char *current_address = (char *) malloc((INET_ADDRSTRLEN+1)*sizeof(char));
-	char *dest_address = (char *) malloc((INET_ADDRSTRLEN+1)*sizeof(char));
-	uint32_t temporary = ip_hdr->ip_dst.s_addr;
-	inet_ntop(AF_INET, &temporary, dest_address, (INET_ADDRSTRLEN+1)*sizeof(char));
-	temporary = ip_hdr->ip_src.s_addr;
-	inet_ntop(AF_INET, &temporary, current_address, (INET_ADDRSTRLEN+1)*sizeof(char));
-	if(current_address)
-	    free(current_address);
-	if(dest_address)
-	    free(dest_address);
-	
-	printf("\n\nICMP HEADER:\ntype: %u, code %u, sum: %u\n\n\n", icmp->icmp_type, icmp->icmp_code, icmp->icmp_sum);*/
-	return 0;
-}
-
-
-
 
 int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, struct sr_ethernet_hdr *eth_rec)
 {
@@ -273,31 +241,23 @@ int handle_ip(struct packet_state *ps)
 	{
 		printf("malformed IP packet");
 		return 0;
-		/*TODO: send an icmp malformed packet message to 
-		the source host from the ethernet header?????*/
 	}
 	else
 	{
 		struct ip *ip_hdr = (struct ip *)ps->packet;
+		uint16_t src_port = 0;
+		uint16_t dst_port = 0;
 		/* indicates IP header has options, which we don't care about */
 		if((ip_hdr->ip_hl)*4 > sizeof(struct ip)) /* x 4 because there are 4 bytes per 32 bit word */
 		{
-			/*ps->packet = ps->packet + (ip_hdr->ip_len - sizeof(struct ip));*/
 			printf("struct length: %zu\npacketlength: %u\n", sizeof(struct ip), ntohs(ip_hdr->ip_len));
 			return 0;
 		}
 		int ip_offset = sizeof(struct ip);
-		char *if0 = "eth0";
-		char *if1 = "eth1";
-		char *if2 = "eth2";
 		
-		/*struct in_addr ipdst_host_order;
-		ipdst_host_order.s_addr = ntohl(ip_hdr->ip_dst.s_addr);*/ /*may need to remove ntohl*/
 		ps->rt_entry = get_routing_if(ps, ip_hdr->ip_dst);
 		struct ip *iph = (struct ip*)ps->response; /* mark where the ip header should go */
 		
-		
-		/*TODO: make sure interface matching incoming interface ???*/
 
 		int found_case = 0;	/*used to determine which loops to go into*/
 		/*Deals with router as destination*/
@@ -307,37 +267,60 @@ int handle_ip(struct packet_state *ps)
 			
 			while(iface != NULL)
 			{
-				/*printf("current address: %s\n destination address: %s\n", current_address, dest_address);*/
-				/* TODO: This will need rigorous testing */
 				if(iface->ip == ip_hdr->ip_dst.s_addr)
 				{
 					
-					/*
-					if(strcmp(ps->interface, if0) == 0)
+					/*verify valid packet with firewall*/
+					if(is_external(ps->sr, ps->interface))
 					{
-						if(strcmp(&iface->name[0], if1) == 0 || strcmp(&iface->name[0], if2) == 0)
-						{ return -1; }
-					}*/
+						printf("External origin, dest router\n");
+						
+						if(is_internal(ps->sr, iface->name))
+						{ 
+							if(ip_hdr->ip_p == IPPROTO_ICMP)
+							{
+								if(check_connection(ps->sr, ip_hdr->ip_src,
+								ip_hdr->ip_dst, ip_hdr->ip_p, 0, 0) == 0)
+								/*send 0 if it's an ICMP packet because they don't 
+								have port numbers */
+								{ return 0; }
+							}
+							else if(ip_hdr->ip_p == IPPROTO_TCP 
+								||ip_hdr->ip_p == IPPROTO_UDP)
+							{
+								if(ps->len >= 4)	/* Need at least 4 bytes for the 2 port numbers */
+								{
+									
+									memmove(&src_port, ps->packet, 2);
+									memmove(&dst_port, (ps->packet + 2), 2);
+									if(check_connection(ps->sr, ip_hdr->ip_src,
+									ip_hdr->ip_dst, ip_hdr->ip_p, src_port, dst_port) == 0)
+									{
+										return 0;
+									}
+								}
+								else { return 0; }
+							}
+							else { return 0; }
+						}
+					}
+					
 					found_case = 1;
 					leave_hdr_room(ps, ip_offset);
 					if(ip_hdr->ip_p == IPPROTO_ICMP)
 					{
 						handle_icmp(ps, ip_hdr);
-						/* TODO: Reconfigure IP header */
 					}
 					else
 					{
 						icmp_response(ps, ip_hdr, ICMPT_DESTUN, ICMPC_PORTUN);
 					}
-					/* TODO: create the IP header */
 					
 					memmove(iph, ip_hdr, sizeof(struct ip));
-					/*iph->ip_hl = sizeof(struct ip)/4;*/
-					/*iph->ip_hl = 5;
-					iph->ip_v = 4;*/
-					iph->ip_len = htons(ps->res_len - sizeof(struct sr_ethernet_hdr));
+					
 					/*subtract outer ethernet header wrapping the IP datagram */
-					/*iph->ip_len = ps->res_len;*/
+					iph->ip_len = htons(ps->res_len - sizeof(struct sr_ethernet_hdr));
+					
 					iph->ip_ttl = INIT_TTL;
 					iph->ip_tos = ip_hdr->ip_tos;
 					iph->ip_p = IPPROTO_ICMP;
@@ -360,10 +343,9 @@ int handle_ip(struct packet_state *ps)
 		{
 			/*check if interface==eth0*/
 			
-			if(strcmp(ps->interface, if0) == 0)
+			if(is_external(ps->sr, ps->interface))
 			{
-				if(strcmp(&ps->rt_entry->interface[0], if1) == 0 
-					|| strcmp(&ps->rt_entry->interface[0], if2) == 0)
+				if(is_internal(ps->sr, ps->rt_entry->interface))
 				{
 					leave_hdr_room(ps, ip_offset);
 					/*need at least 4 bytes for the dest and source ports */
@@ -380,9 +362,9 @@ int handle_ip(struct packet_state *ps)
 					{
 						if(ps->len >= 4)	/* Need at least 4 bytes for the 2 port numbers */
 						{
-							uint16_t src_port = 0;
+							src_port = 0;
 							memmove(&src_port, ps->packet, 2);
-							uint16_t dst_port = 0;
+							dst_port = 0;
 							memmove(&dst_port, (ps->packet + 2), 2);
 							if(check_connection(ps->sr, ip_hdr->ip_src,
 							ip_hdr->ip_dst, ip_hdr->ip_p, src_port, dst_port) == 0)
@@ -412,9 +394,9 @@ int handle_ip(struct packet_state *ps)
 					{
 						if(ps->len >= 4)	/* Need at least 4 bytes for the 2 port numbers */
 						{
-							uint16_t src_port = 0;
+							src_port = 0;
 							memmove(&src_port, ps->packet, 2);
-							uint16_t dst_port = 0;
+							dst_port = 0;
 							memmove(&dst_port, (ps->packet + 2), 2);
 							if(add_ft_entry(ps->sr, ip_hdr->ip_src,
 								ip_hdr->ip_dst, ip_hdr->ip_p, src_port, dst_port) == 0)
@@ -465,14 +447,6 @@ uint16_t cksum(uint8_t *buff, int len)
 	uint32_t sum = 0;
 	uint16_t i;
 	
-	/*for(i = 0; i < len; i++)
-	{
-		printf("%x  ", buff[i]);
-		if(i%10 == 0)
-		{
-			printf("\n");
-		}
-	}*/
 	
 	for(i = 0; i < len; i = i + 2)
 	{
@@ -486,34 +460,7 @@ uint16_t cksum(uint8_t *buff, int len)
 	}
 	
 	sum = ~sum;
-	/*printf("\n\n\nSum: %x\nLen: %d\n\n", sum, len);*/
 	return ((uint16_t) sum);
-
-	
-	/*uint32_t sum = 0;  
-	uint16_t answer = 0;
-	printf("%d\n", len);
-
-	while(len > 1)
-	{
-	 sum += *(ip_hdr)++;
-	 if(sum & 0x80000000)   
-	   	sum = (sum & 0xFFFF) + (sum >> 16);
-	 	len -= 2;
-	 	printf("%d\n", len);
-	}
-	
-	if(len)      
-	{
-		sum += (uint16_t) *(uint8_t *)ip_hdr;
-	}
-	while(sum>>16)
-	{
-		sum = (sum & 0xFFFF) + (sum >> 16);
-	}
-	
-	answer = (uint16_t) ~sum;
-	return answer;*/
 
 }
 
@@ -554,18 +501,9 @@ struct sr_rt* get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
 	return response;
 }
 
-/*Temporary implementations of firewall functions for the compiler */
-/*int ft_contains(struct sr_instance *a, uint32_t b, uint32_t c, uint8_t d, uint8_t f, uint8_t e)
-{
-	return 1;
-}
-int sr_add_ft_entry(struct sr_instance *a, uint32_t b, uint32_t c, uint8_t d, uint8_t e, uint8_t f)
-{
-	return 1;
-}*/
-
 
 /*--------------------------------------------------------------------- 
  * Method:
  *
  *---------------------------------------------------------------------*/
+ 

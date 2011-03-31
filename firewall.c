@@ -1,66 +1,8 @@
-/*
-firewall.c
-Adam Gross
-Revised 3/28/11 11:00 AM
-http://yuba.stanford.edu/vns/assignments/firewall
-*/
 
-/*
-eth0 is external
-eth1 is internal
-eth2 is internal
 
-Pseudocode (goes in sr_router.c):
 
-if (sr_handlepacket.if == eth0)
-    if(dest == eth1 || dest == eth2)
-     {
-       drop packet, no response;
-       return;
-     }
-    if(dest == app1 || dest == app2)
-     {
-       if(check_connection(sr, sourceIP, destIP, prtcl, sourcePort, destPort) == 0)
-        {       
-	  packet denied;
-	  return;
-        }
-       if(check_connection(sr, sourceIP, destIP, prtcl, sourcePort, destPort) == 1)
-        {
-	 packed allowed;
-	 return;
-	}
-     }
-if (sr_handlepacket.if == eth1 || sr_handlepacket.if == eth2)
-{
-    if(sr_add_ft_entry(sr, sourceIP, destIP, prtcl, sourcePort, destPort) == 1)
-       return;
-    else
-       flow table is full - send ICMP "connection refused" and generate log entry;
-    if(sr_add_fr_entry(sr, destIP, sourceIP, prtcl, destPort, sourcePort) == 1)
-       return;
-    else
-       flow table is full - send ICMP "connection refused" and generate log entry;
-}
-____________________________________________________________________________________________
 
-Data members for router (goes in sr_router.h, in the sr_instance struct):
 
-#include "firewall.h"
-
-struct ft* flow_table; //flow table
-struct rule* rule_table; //rules table
-int ft_size; //number of entries in flow table
-
-_____________________________________________________________________________________________
-
-Notes:
-
-_flow table_
-<srcIP, dstIP, IPprotocol, src-port, dst-port>
- */
-
-#include "firewall.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,6 +12,10 @@ _flow table_
 #include <sys/types.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "firewall.h"
+#include "sr_if.h"
+
 
 /* returns 1 if success, 0 if error */
 int init_rules_table(struct sr_instance* sr, const char* filename)
@@ -111,6 +57,108 @@ fp = fopen(filename,"r");
   return 1;
 	
 }
+
+/* returns 1 if success, 0 if error */
+int init_if_config(struct sr_instance* sr, const char* filename)
+{
+  FILE* fp = 0;
+  char line[BUFSIZ];
+  char if_name[sr_IFACE_NAMELEN];
+  char category[CAT_NAME_LEN];
+  char *exter = FW_EXTERNAL;
+  char *inter = FW_INTERNAL;
+  struct if_cat_list *int_walker = sr->inter;
+  struct if_cat_list *ext_walker = sr->exter;
+  
+
+  assert(filename);
+  if(access(filename,R_OK) != 0)
+    {
+      perror("access");
+      return 0;
+    }
+
+fp = fopen(filename,"r");
+	
+ while(fgets(line,BUFSIZ,fp) != 0)
+ {
+	  sscanf(line,"%s %s",if_name,category);
+	  if(strcmp(category, exter) == 0)
+	  {
+	  	if(sr->exter == 0)
+	  	{
+	  		sr->exter = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
+	  		strncpy(sr->exter->name, if_name, sr_IFACE_NAMELEN);
+	  		sr->exter->next = 0;
+	  		ext_walker = sr->exter;
+	  	}
+	  	else
+	  	{
+	  		ext_walker->next = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
+	  		ext_walker = ext_walker->next;
+	  		strncpy(ext_walker->name, if_name, sr_IFACE_NAMELEN);
+	  		ext_walker->next = 0;
+	  	}
+	  }
+	  else if(strcmp(category, inter) == 0)
+	  {
+	  	if(sr->inter == 0)
+	  	{
+	  		sr->inter = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
+	  		strncpy(sr->inter->name, if_name, sr_IFACE_NAMELEN);
+	  		sr->inter->next = 0;
+	  		int_walker = sr->inter;
+	  	}
+	  	else
+	  	{
+	  		int_walker->next = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
+	  		int_walker = int_walker->next;
+	  		strncpy(int_walker->name, if_name, sr_IFACE_NAMELEN);
+	  		int_walker->next = 0;
+	  	}
+	  }
+	  else
+	  {
+	  	printf("Error with the interface configuration file\n");
+	  }
+  }
+  return 1;	
+}
+
+int is_external(struct sr_instance* sr, char *iface)
+{
+	struct if_cat_list *walker = sr->exter;
+	while(walker)
+	{
+		if(strcmp(walker->name, iface) == 0)
+		{
+			return 1;
+		}
+		else
+		{
+			walker = walker->next;
+		}
+	}
+	return 0;
+}
+
+int is_internal(struct sr_instance* sr, char *iface)
+{
+	struct if_cat_list *walker = sr->inter;
+	while(walker)
+	{
+		if(strcmp(walker->name, iface) == 0)
+		{
+			return 1;
+		}
+		else
+		{
+			walker = walker->next;
+		}
+	}
+	return 0;
+}
+
 
 void print_rules(struct sr_instance* sr)
 {
