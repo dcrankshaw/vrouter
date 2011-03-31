@@ -175,7 +175,8 @@ void add_cache_entry(struct packet_state* ps,const uint32_t ip, const unsigned c
             memcpy(cache_walker->mac, mac,ETHER_ADDR_LEN);
             cache_walker->timenotvalid=time(NULL) +15;	/* Each cache entry is valid for 15 seconds */
             cache_walker->next=0;
-            free(cache_walker);
+            if(cache_walker)
+            	free(cache_walker);
         }
 	}
 
@@ -247,8 +248,10 @@ struct arp_cache_entry* delete_entry(struct packet_state* ps, struct arp_cache_e
 		}
 	}
 	
-	free(walker->mac);
-	free(walker);
+	if(walker->mac)
+		free(walker->mac);
+	if(walker)
+		free(walker);
 	if(prev!=NULL)
 		return prev->next;
 	return NULL;
@@ -307,8 +310,10 @@ void construct_reply(struct packet_state* ps, const struct sr_arphdr* arp_hdr, c
 	memmove(ps->response, reply, sizeof(struct sr_arphdr));
 	ps->response-=eth_offset;
 	memmove(ps->response, new_eth, eth_offset);
-	free(reply);
-	free(new_eth);
+	if(reply)
+		free(reply);
+	if(new_eth)
+		free(new_eth);
 	ps->res_len=eth_offset + sizeof(struct sr_arphdr);
 	printf("Response was constructed.\n");
 }
@@ -362,9 +367,10 @@ void send_request(struct packet_state* ps, const uint32_t dest_ip)
 	memmove((ps->response + eth_offset), request, sizeof(struct sr_arphdr));
 	struct sr_ethernet_hdr *temp = (struct sr_ethernet_hdr *)ps->response;
 	
-	
-	free(request);
-	free(new_eth);
+	if(request)
+		free(request);
+	if(new_eth)	
+		free(new_eth);
 	ps->res_len=eth_offset + sizeof(struct sr_arphdr);
 
 	

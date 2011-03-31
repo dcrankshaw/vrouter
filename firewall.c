@@ -361,20 +361,23 @@ void remove_old_ft_entries(struct sr_instance* sr)
   			sr->flow_table = sr->flow_table->next;
   			ft_walker = sr->flow_table;
   			sr->ft_size--;
-  			free(del);
+  			if(del)
+  				free(del);
   		}
   		else if(!ft_walker->next)
   		{
 			
 			prev->next=NULL;
 			sr->ft_size--;
-			free(ft_walker);
+			if(ft_walker)
+				free(ft_walker);
 		}
 		else
 		{
 			prev->next=ft_walker->next;
 			sr->ft_size--;
-			free(ft_walker);
+			if(ft_walker)
+				free(ft_walker);
 			ft_walker = prev->next;
 		}
 	}
