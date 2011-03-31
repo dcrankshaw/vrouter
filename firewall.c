@@ -337,6 +337,7 @@ int add_rule(struct sr_instance* sr, struct in_addr srcIP, struct in_addr dstIP,
   rule_walker->dstIP = dstIP;
 
   rule_walker->IPprotocol = IPprotocol;
+  
 
   rule_walker->srcPort = srcPort;
 
@@ -390,7 +391,10 @@ int add_ft_entry(struct sr_instance* sr, struct in_addr srcIP, struct in_addr ds
 
     {
 
-    printf("Delete failed and Rule table is still max size.\n");
+	/***************************************
+	SEND AN ICMP RESPONSE HOST UNREACHABLE
+	****************************************/
+	printf("Delete failed and Rule table is still max size.\n");
 
       return 0;  /* ICMP "connection refused" returned and log entry generated */
 
@@ -442,7 +446,8 @@ int add_ft_entry(struct sr_instance* sr, struct in_addr srcIP, struct in_addr ds
 
       sr->flow_table->dstPort = dstPort;
 
-      sr->flow_table->creation_time = time(NULL);
+      /*sr->flow_table->creation_time = time(NULL);*/
+      time(&sr->flow_table->creation_time);
 
       sr->flow_table->ttl += TTL_INCREMENT;
 
@@ -516,26 +521,24 @@ int ft_contains(struct sr_instance* sr, struct in_addr srcIP, struct in_addr dst
 
 	struct ft* ft_walker = 0;
 
-  	int maxTTL = MAX_ENTRY_TTL;
+  	time_t maxTTL = MAX_ENTRY_TTL;
+  	int cur = 0;
 
   	ft_walker = sr->flow_table;
 
   	while(ft_walker)
 
     {
-
-      
-
     	if((ft_walker->srcIP.s_addr == srcIP.s_addr) && (ft_walker->dstIP.s_addr == dstIP.s_addr) && (ft_walker->IPprotocol == IPprotocol) && (ft_walker->srcPort == srcPort) && (ft_walker->dstPort == dstPort))
 
 		{
 
-	  		if(ft_walker->ttl > maxTTL)
-
+			
+			cur = time(NULL);
+			/*Check if packet is expired*/
+	  		if((cur - ft_walker->creation_time > ft_walker->ttl) || (ft_walker->ttl > maxTTL))
 	  		{
-
 	  			return 0;
-
 	  		}
 
 	  		ft_walker->ttl += TTL_INCREMENT;
@@ -571,9 +574,7 @@ int rule_contains(struct sr_instance* sr, struct in_addr srcIP, struct in_addr d
 	rule_walker = sr->rule_table;
 
 	while(rule_walker)
-
 	{
-
 		/* if the rule contains a wildcard, temporarily convert the parameter to a wildcard so it will match */
 
 		if(rule_walker->srcIP.s_addr == 0)
@@ -656,7 +657,7 @@ void print_ft(struct sr_instance* sr)
 
 
 
-  printf("Source IP\tDest IP\tProtocol\tSource Port\tDest Port");
+  printf("Source IP\tDest IP\tProtocol\tSource Port\tDest Port\tTTL\n");
 
 
 
@@ -690,13 +691,15 @@ void print_ft_entry(struct ft* entry)
 
   printf("%s\t\t",inet_ntoa(entry->srcIP));
 
-  printf("%s\t",inet_ntoa(entry->dstIP));
+  printf("%s\t\t",inet_ntoa(entry->dstIP));
 
   printf("%u\t",entry->IPprotocol);
 
   printf("%i\t",entry->srcPort);
 
-  printf("%i\n",entry->dstPort);
+  printf("%i\t",entry->dstPort);
+  int expired = time(NULL) - entry->creation_time - entry->ttl;
+  printf("%u\n",expired);
 
 } /* end print_ft_entry() */
 
