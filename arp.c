@@ -29,7 +29,14 @@
 #define BROADCAST_ETH 0xFF
 #endif
 
-/*Cleaned except for print statements in switch case. -MS*/
+/*******************************************************************
+*   Called when handle_packet() receives and ARP packet.
+*   
+*   If received a request, calls got_Request() and returns NULL. 
+*   If received a reply, calls got_Reply() and returns the ARP cache entry constructed from the 
+*   reply received.
+*
+********************************************************************/
 struct arp_cache_entry* handle_ARP(struct packet_state * ps, struct sr_ethernet_hdr* eth)
 {
 	struct sr_arphdr *arp =0;
@@ -45,24 +52,31 @@ struct arp_cache_entry* handle_ARP(struct packet_state * ps, struct sr_ethernet_
 		switch (ntohs(arp->ar_op))
 		{
 			case (ARP_REQUEST):
-	  			printf("Got an ARP Request.\n");
+			{
 	  			got_Request(ps, arp, eth);
 	  			return NULL;
+	  		}
 	  			break;
 			case (ARP_REPLY):
-	  			printf("Got an ARP Reply.\n");
+			{
 	  			return got_Reply(ps, arp); 
+	  		}
 	  			break;
 			default:
+			{
 	  			printf("ARP: Not Request nor Reply\n");
 	  			printf("%hu", arp->ar_op);
+	  		}
 	  			return NULL;
 		}
 	}
 	return NULL;
 }
 
-/*Cleaned. -MS*/
+/*******************************************************************
+*   Finds interface the ARP Request was received from and constructs ARP Reply to send back out of 
+*   the received interface. 
+*******************************************************************/
 void got_Request(struct packet_state * ps, struct sr_arphdr * arp_hdr, const struct sr_ethernet_hdr* eth)
 {
 	assert(ps);
@@ -74,14 +88,19 @@ void got_Request(struct packet_state * ps, struct sr_arphdr * arp_hdr, const str
 	construct_reply(ps, arp_hdr, iface->addr, eth);
 }
 
-/* Cleaned. --MS*/
+/*******************************************************************
+*   Adds information from received ARP Reply to ARP Cache and returns newly added ARP Cache entry.
+*******************************************************************/
 struct arp_cache_entry* got_Reply(struct packet_state * ps, struct sr_arphdr * arp)
 {
 	add_cache_entry(ps, arp->ar_sip, arp->ar_sha); /*Add IP and MAC address from reply to cache */
 	return search_cache(ps, arp->ar_sip); /*Return the newly added entry. */	
 }
 
-/* Clean. -MS */
+/*******************************************************************
+*   Adds entry to ARP Cache if not already in Cache. Also deletes any entries that are past 
+*   their expiration time.
+*******************************************************************/
 void add_cache_entry(struct packet_state* ps,const uint32_t ip, const unsigned char* mac)
 {
 	if(search_cache(ps, ip)==NULL) /*Entry is not already in cache so add. */
@@ -99,7 +118,7 @@ void add_cache_entry(struct packet_state* ps,const uint32_t ip, const unsigned c
             ps->sr->arp_cache->next=0;
             ps->sr->arp_cache->ip_add=ip;
             memmove(ps->sr->arp_cache->mac, mac,ETHER_ADDR_LEN);
-            ps->sr->arp_cache->timenotvalid=time(NULL) +15;	/* Each cache entry is valid for 15 seconds */
+            ps->sr->arp_cache->timenotvalid=time(NULL) +ARP_TIMEOUT;
         }
         else
         {
@@ -120,14 +139,17 @@ void add_cache_entry(struct packet_state* ps,const uint32_t ip, const unsigned c
             cache_walker=cache_walker->next;
             cache_walker->ip_add=ip;
             memmove(cache_walker->mac, mac,ETHER_ADDR_LEN);
-            cache_walker->timenotvalid=time(NULL) +15;	/* Each cache entry is valid for 15 seconds */
+            cache_walker->timenotvalid=time(NULL) +ARP_TIMEOUT;
             cache_walker->next=0;
         }
 	}
 
 }
 
-/*Cleaned. -MS */
+/*******************************************************************
+*   Searches cache for entry based on IP address. Deletes any entries past expiration time. Returns 
+*   matching entry.
+*******************************************************************/
 struct arp_cache_entry* search_cache(struct packet_state* ps,const uint32_t ip)
 {
 	struct arp_cache_entry* cache_walker=0;
@@ -152,7 +174,9 @@ struct arp_cache_entry* search_cache(struct packet_state* ps,const uint32_t ip)
 	return NULL;
 }
 
-/*Cleaned. -MS */
+/*******************************************************************
+*   Deletes entry from cache.
+*******************************************************************/
 struct arp_cache_entry* delete_entry(struct packet_state* ps, struct arp_cache_entry* want_deleted)
 {
 	struct arp_cache_entry* prev=0;
@@ -204,6 +228,9 @@ struct arp_cache_entry* delete_entry(struct packet_state* ps, struct arp_cache_e
 	
 }
 
+/*******************************************************************
+*   Prints all of ARP Cache.
+*******************************************************************/
 void print_cache(struct sr_instance* sr)
 {
 	printf("---ARP CACHE---\n");
@@ -221,6 +248,9 @@ void print_cache(struct sr_instance* sr)
 	}
 }
 
+/*******************************************************************
+*   Prints single ARP Cache Entry.
+*******************************************************************/
 void print_cache_entry(struct arp_cache_entry * ent)
 {
 	struct in_addr ip_addr;
@@ -231,7 +261,9 @@ void print_cache_entry(struct arp_cache_entry * ent)
 	printf(" Time when Invalid: %lu\n",(long)ent->timenotvalid);
 }
 
-/*Cleaned except for last printf --MS */
+/*******************************************************************
+*   Constructs Reply to an ARP Request.
+*******************************************************************/
 void construct_reply(struct packet_state* ps, const struct sr_arphdr* arp_hdr, const unsigned char* mac, const struct sr_ethernet_hdr* eth)
 {
     /* Construct ARP Reply Header*/
@@ -266,10 +298,11 @@ void construct_reply(struct packet_state* ps, const struct sr_arphdr* arp_hdr, c
 		free(new_eth);
 
 	ps->res_len=eth_offset + sizeof(struct sr_arphdr);
-	printf("Response was constructed.\n");
 }
 
-/*Cleaned. --MS */
+/*******************************************************************
+*   Constructs appropriate ARP Request based on a packet to be forwarded.
+*******************************************************************/
 void send_request(struct packet_state* ps, const uint32_t dest_ip)
 {
 	/*Construct ARP Header*/
