@@ -16,7 +16,7 @@
 
 #define TTL_INCREMENT	10
 #define	MAX_TTL_UPDATES	10
-#define MAX_FT_SIZE	30
+#define MAX_FT_SIZE	2
 
 /* the struct containing the list of all internal/external interfaces */
 struct if_cat_list

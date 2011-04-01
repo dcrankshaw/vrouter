@@ -274,7 +274,6 @@ int tell_valid(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 		}
 		else
 		{
-			/*TODO: SEND ICMP HOTST UNREACHABLE*/
 			return 0;
 		}
 	}

@@ -173,10 +173,7 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, struct sr_ethern
 {
 
 	/*check ARP cache to see if the MAC address for the outgoing IP address is there*/
-	/* if not present, sleep(5), check again. Repeat 5 times, then send ICMP
-		host unreachable message */
 
-	/* This method must also figure out the interface to send the packet out of */
 
 
 	/*when buffering packet, memmove() the packet to the buffer, then maddie can use the
@@ -337,7 +334,7 @@ int handle_ip(struct packet_state *ps)
 					iph->ip_sum = 0;
 					iph->ip_sum = cksum((uint8_t *)iph, sizeof(struct ip));
 					iph->ip_sum = htons(iph->ip_sum);
-					break;
+					return 1;
 				}
 				else
 				{
@@ -401,7 +398,22 @@ int handle_ip(struct packet_state *ps)
 					{
 						if(!tell_valid(ps->sr, ip_hdr->ip_dst.s_addr, ip_hdr->ip_src.s_addr,ip_hdr->ip_p, 0, 0))
 						{
-							return 0;
+							icmp_response(ps, ip_hdr, ICMPT_DESTUN, ICMPC_HOSTUN);
+							memmove(iph, ip_hdr, sizeof(struct ip));
+							
+							/*subtract outer ethernet header wrapping the IP datagram */
+							iph->ip_len = htons(ps->res_len - sizeof(struct sr_ethernet_hdr));
+							
+							iph->ip_ttl = INIT_TTL;
+							iph->ip_tos = ip_hdr->ip_tos;
+							iph->ip_p = IPPROTO_ICMP;
+							iph->ip_src = ip_hdr->ip_dst;
+							iph->ip_dst = ip_hdr->ip_src;
+							iph->ip_sum = 0;
+							iph->ip_sum = cksum((uint8_t *)iph, sizeof(struct ip));
+							iph->ip_sum = htons(iph->ip_sum);
+							ps->rt_entry = get_routing_if(ps, iph->ip_dst);
+							return 1;
 						}
 						
 						
@@ -437,7 +449,23 @@ int handle_ip(struct packet_state *ps)
 							
 							if(!tell_valid(ps->sr, ip_hdr->ip_dst.s_addr, ip_hdr->ip_src.s_addr, ip_hdr->ip_p, dst_port, src_port))
 							{
-								return 0;
+								icmp_response(ps, ip_hdr, ICMPT_DESTUN, ICMPC_HOSTUN);
+								memmove(iph, ip_hdr, sizeof(struct ip));
+								
+								/*subtract outer ethernet header wrapping the IP datagram */
+								iph->ip_len = htons(ps->res_len - sizeof(struct sr_ethernet_hdr));
+								
+								iph->ip_ttl = INIT_TTL;
+								iph->ip_tos = ip_hdr->ip_tos;
+								iph->ip_p = IPPROTO_ICMP;
+								iph->ip_src = ip_hdr->ip_dst;
+								iph->ip_dst = ip_hdr->ip_src;
+								iph->ip_sum = 0;
+								iph->ip_sum = cksum((uint8_t *)iph, sizeof(struct ip));
+								iph->ip_sum = htons(iph->ip_sum);
+								ps->rt_entry = get_routing_if(ps, iph->ip_dst);
+
+								return 1;
 							}
 							
 							
@@ -452,6 +480,21 @@ int handle_ip(struct packet_state *ps)
 			{
 				/*packet expired*/
 				icmp_response(ps, ip_hdr, ICMPT_TIMEEX, ICMPC_INTRANSIT);
+				memmove(iph, ip_hdr, sizeof(struct ip));
+				
+				/*subtract outer ethernet header wrapping the IP datagram */
+				iph->ip_len = htons(ps->res_len - sizeof(struct sr_ethernet_hdr));
+				
+				iph->ip_ttl = INIT_TTL;
+				iph->ip_tos = ip_hdr->ip_tos;
+				iph->ip_p = IPPROTO_ICMP;
+				iph->ip_src = ip_hdr->ip_dst;
+				iph->ip_dst = ip_hdr->ip_src;
+				iph->ip_sum = 0;
+				iph->ip_sum = cksum((uint8_t *)iph, sizeof(struct ip));
+				iph->ip_sum = htons(iph->ip_sum);
+				ps->rt_entry = get_routing_if(ps, iph->ip_dst);
+				return 1;
 			}
 			else /* FORWARD */
 			{
@@ -460,10 +503,6 @@ int handle_ip(struct packet_state *ps)
 				ps->forward = 1;
 				ps->res_len += ps->len;
 			}
-		}
-		else
-		{
-			printf("ResLen 1: %i\n", ps->res_len);
 		}
 	}
 	return 1;
