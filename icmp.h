@@ -1,3 +1,10 @@
+/**********************************************************************
+ * Group name: jhugroup1
+ * Members: Daniel Crankshaw, Maddie Stone, Adam Gross
+ * CS344
+ * 4/01/2011
+ **********************************************************************/
+
 #ifndef ICMP_H
 #define ICMP_H
 

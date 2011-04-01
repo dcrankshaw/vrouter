@@ -9,6 +9,13 @@
  * with the routing table, as well as the main entry method
  * for routing.
  *
+ * Group name: jhugroup1
+ * Members: Daniel Crankshaw, Maddie Stone, Adam Gross
+ * CS344
+ * 4/01/2011 
+ * This file also contains all the functions that interact with the packet
+ * at the IP datagram level.
+ *
  **********************************************************************/
 
 #include <stdio.h>
@@ -79,6 +86,13 @@ void sr_init(struct sr_instance* sr)
  * packet instead if you intend to keep it around beyond the scope of
  * the method call.
  *
+ * JHUGROUP1:
+ * This function now strips off the ethernet header from the packet, decides
+ * whether the packet is an IP or ARP request, and passes it to the appropriate
+ * handler. It then attempts to create an ethernet header for the packet, and if
+ * that is successful, it sends the packet. Finally, it tells the router to update
+ * the buffer.
+ *
  *---------------------------------------------------------------------*/
 
 void sr_handlepacket(struct sr_instance* sr, 
@@ -114,7 +128,7 @@ void sr_handlepacket(struct sr_instance* sr,
     
     if(len < eth_offset)
     {
-    	printf("Error, malformed packet recieved");
+    	printf("Error, malformed packet received");
     }
     else
     {
@@ -126,7 +140,7 @@ void sr_handlepacket(struct sr_instance* sr,
 		switch(ntohs(eth->ether_type))
 		{
 			case (ETHERTYPE_IP):
-				printf("GOT an IP packet\n");
+			{
 				if(handle_ip(&current) != 0)
 				{
 					if(create_eth_hdr(head, &current, perm_eth) > 0)
@@ -134,22 +148,18 @@ void sr_handlepacket(struct sr_instance* sr,
 						sr_send_packet(sr, head, current.res_len, current.rt_entry->interface);
 					}
 				}
-				break;
-
+			}
+			break;
 			case (ETHERTYPE_ARP):
-				printf("Got an ARP packet\n");
+			{
 				struct arp_cache_entry *new_entry = handle_ARP(&current, eth);
 				if(new_entry == NULL)
 				{
 					if(current.res_len >0)
 					    sr_send_packet(sr, head, current.res_len, interface);
 				}
-				/*
-				else
-				{
-					struct packet_buffer* pb=search_buffer(&current, new_entry->ip_add);
-				}*/
-				break;
+			}
+			break;
 			default:
 				printf("%x\n", eth->ether_type);
 		}
@@ -167,17 +177,25 @@ void sr_handlepacket(struct sr_instance* sr,
 	    free(current.response);
 
     
-}/* end sr_ForwardPacket */
+}
+
+/*---------------------------------------------------------------------
+ * Method: int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, 
+ *							struct sr_ethernet_hdr *eth_rec)
+ * 
+ * This method attempts to create an ethernet header for the packet
+ * with the ip header argument provided. If the MAC address we need
+ * is in the cache, we create the header. Otherwise we buffer the packet
+ * and create an ARP request to get the MAC address.
+ *
+ *---------------------------------------------------------------------*/
+
+
 
 int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, struct sr_ethernet_hdr *eth_rec)
 {
 
 	/*check ARP cache to see if the MAC address for the outgoing IP address is there*/
-
-
-
-	/*when buffering packet, memmove() the packet to the buffer, then maddie can use the
-	response field in packet_state to build her arp_request*/
 	
 	struct ip *new_iphdr = (struct ip*)(newpacket+sizeof(struct sr_ethernet_hdr));
 	struct sr_if *sif = 0;
@@ -197,7 +215,6 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, struct sr_ethern
 		
 	}
 	struct arp_cache_entry *ent = search_cache(ps, ps->rt_entry->gw.s_addr);
-	printf("Gateway address used to search: %s\n", inet_ntoa(ps->rt_entry->gw));
 	if(ent != NULL)
 	{
 		struct sr_ethernet_hdr *eth = (struct sr_ethernet_hdr *) newpacket;
@@ -217,21 +234,34 @@ int create_eth_hdr(uint8_t *newpacket, struct packet_state *ps, struct sr_ethern
 		assert(current->arp_req);
 		memmove(current->arp_req, ps->response, ps->res_len);
 		current->arp_len = ps->res_len;
-		struct sr_ethernet_hdr *ether_hdr = (struct sr_ethernet_hdr *)ps->response;
-		
-		printf("SHOST ETH HDR: ");
-		DebugMAC(ether_hdr->ether_shost);
-		printf("\nIFACE ADDR: ");
-		struct sr_if* ifcheck=sr_get_interface(ps->sr, ps->rt_entry->interface);
-		DebugMAC(ifcheck->addr);
-		//send_packet(ps->sr, ps->response, ps->res_len, ps->rt_entry->interface);
 		return 0;
 	}
 	return 0;
 }
 
-
-
+/*---------------------------------------------------------------------
+ * Method: int handle_ip(struct packet_state *ps)
+ * 
+ * This is the main method for handling IP packets. After error checking,
+ * it enters one of two control blocks, either responding to a packet
+ * or forwarding a packet.
+ * 
+ * If responding (the destination IP address in the IP header matches one
+ * of the IP address in the interface list): the router determines whether
+ * it is a valid request by asking the firewall, then determines whether it
+ * is an ICMP echo request (the only packets the router itself response to).
+ * Finally, it either creates the ICMP response packet, or creates an ICMP
+ * Port Unreachable ICMP packet, and returns true.
+ *
+ * If forwarding: The router checks to make sure it is a valid request with the
+ * firewall if the source is external, or adds the connection to the firewall
+ * valid connections list (i.e. the flow table) if the source is internal. It then
+ * updates the IP header and returns true.
+ *
+ * Note: If at any point the router detects an invalid request from the firewall,
+ * handle_ip returns false and the router silently drops the packet.
+ *
+ *---------------------------------------------------------------------*/
 int handle_ip(struct packet_state *ps)
 {
 	/*Load IP header*/
@@ -269,12 +299,9 @@ int handle_ip(struct packet_state *ps)
 			{
 				if(iface->ip == ip_hdr->ip_dst.s_addr)
 				{
-					
 					/*verify valid packet with firewall*/
 					if(is_external(ps->sr, ps->interface))
-					{
-						printf("External origin, dest router\n");
-						
+					{	
 						if(is_internal(ps->sr, iface->name))
 						{ 
 							if(ip_hdr->ip_p == IPPROTO_ICMP)
@@ -290,14 +317,8 @@ int handle_ip(struct packet_state *ps)
 							{
 								if(ps->len >= 4)	/* Need at least 4 bytes for the 2 port numbers */
 								{
-									
-									
-									/*memmove(&src_port, ps->packet, 2);
-									memmove(&dst_port, (ps->packet + 2), 2);*/
 									src_port = *((uint16_t*)ps->packet);
 									dst_port = *((uint16_t*)(ps->packet + 2));
-									//src_port = ntohs(src_port);
-									//dst_port = ntohs(dst_port);
 									
 									if(check_connection(ps->sr, ip_hdr->ip_src.s_addr,
 									ip_hdr->ip_dst.s_addr, ip_hdr->ip_p, src_port, dst_port) == 0)
@@ -422,25 +443,14 @@ int handle_ip(struct packet_state *ps)
 					{
 						if(ps->len >= 4)	/* Need at least 4 bytes for the 2 port numbers */
 						{
-							/*src_port = 0;
-							memmove(&src_port, ps->packet, 2);
-							dst_port = 0;
-							memmove(&dst_port, (ps->packet + 2), 2);*/
 							
 							src_port = 0;
 							dst_port = 0;
 							src_port = *((uint16_t*)ps->packet);
 							dst_port = *((uint16_t*)(ps->packet + 2));
-							//src_port = ntohs(src_port);
-							//dst_port = ntohs(dst_port);
-							/*if(add_ft_entry(ps->sr, ip_hdr->ip_src,
-								ip_hdr->ip_dst, ip_hdr->ip_p, src_port, dst_port) == 0)
-							{ return 0; }
-							if(add_ft_entry(ps->sr, ip_hdr->ip_dst,
-								ip_hdr->ip_src, ip_hdr->ip_p, dst_port, src_port) == 0)
-							{ return 0; }*/
 							
-							if(!tell_valid(ps->sr, ip_hdr->ip_dst.s_addr, ip_hdr->ip_src.s_addr, ip_hdr->ip_p, dst_port, src_port))
+							if(!tell_valid(ps->sr, ip_hdr->ip_dst.s_addr, ip_hdr->ip_src.s_addr, 
+											ip_hdr->ip_p, dst_port, src_port))
 							{
 								icmp_response(ps, ip_hdr, ICMPT_DESTUN, ICMPC_HOSTUN);
 								memmove(iph, ip_hdr, sizeof(struct ip));
@@ -492,7 +502,7 @@ int handle_ip(struct packet_state *ps)
 			else /* FORWARD */
 			{
 				update_ip_hdr(ip_hdr);
-				memmove(iph, ip_hdr, (ps->len + sizeof(struct ip))); /*TODO: double check that this is right */
+				memmove(iph, ip_hdr, (ps->len + sizeof(struct ip)));
 				ps->forward = 1;
 				ps->res_len += ps->len;
 			}
@@ -501,15 +511,21 @@ int handle_ip(struct packet_state *ps)
 	return 1;
 }
 
+/*Updates all values in the received packet and the response packet (that we are creating)
+ * so that we are dealing with the packet at the right layer (e.g. IP, ICMP, etc)
+ */
 void leave_hdr_room(struct packet_state *ps, int hdr_size)
 {
 	ps->packet += hdr_size;
 	ps->len -= hdr_size;
 	ps->response += hdr_size;
-	ps->res_len += hdr_size; 	/*I DON'T THINK WE WANT TO DO THIS*/
+	ps->res_len += hdr_size;
 }
 
+
+
 /*adapted from: http://web.eecs.utk.edu/~cs594np/unp/checksum.html */
+/*Computes the IP or ICMP checksum*/
 uint16_t cksum(uint8_t *buff, int len)
 {
 	uint16_t word16;
@@ -533,6 +549,7 @@ uint16_t cksum(uint8_t *buff, int len)
 
 }
 
+/* METHOD: Decrements ttl and recomputes IP header checksum */
 void update_ip_hdr(struct ip *ip_hdr)
 {
 	ip_hdr->ip_ttl--;
@@ -540,7 +557,7 @@ void update_ip_hdr(struct ip *ip_hdr)
 	ip_hdr->ip_sum = htons(cksum((uint8_t *) ip_hdr, sizeof(struct ip)));
 }
 
-/*METHOD: Get the correct entry in the routing table*/
+/* METHOD: Get the entry in the routing table corresponding to the IP address given */
 struct sr_rt* get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
 {
 	struct sr_rt* response= NULL;
@@ -570,8 +587,3 @@ struct sr_rt* get_routing_if(struct packet_state *ps, struct in_addr ip_dst)
 	return response;
 }
 
-/*--------------------------------------------------------------------- 
- * Method:
- *
- *---------------------------------------------------------------------*/
- 

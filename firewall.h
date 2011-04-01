@@ -1,8 +1,9 @@
-/*
-firewall.h
-Adam Gross
-Revised 3/28/11 12:00 AM
-*/
+/**********************************************************************
+ * Group name: jhugroup1
+ * Members: Daniel Crankshaw, Maddie Stone, Adam Gross
+ * CS344
+ * 4/01/2011
+ **********************************************************************/
 
 #ifndef FIREWALL_H
 #define FIREWALL_H

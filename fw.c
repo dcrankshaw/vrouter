@@ -170,6 +170,7 @@ fp = fopen(filename,"r");
   return 1;	
 }
 
+/* prints the lists containing the internal and external interfaces */
 void print_if_config(struct sr_instance* sr)
 {
 	printf("Interface Config:\n");
@@ -193,7 +194,7 @@ void print_if_config(struct sr_instance* sr)
 	printf("\n");
 }
 
-
+/* determines whether a given interface is external based on the name */
 int is_external(struct sr_instance* sr, char *iface)
 {
 	struct if_cat_list *walker = sr->exter;
@@ -211,6 +212,8 @@ int is_external(struct sr_instance* sr, char *iface)
 	return 0;
 }
 
+
+/* determines whether a given interface is internal based on the name */
 int is_internal(struct sr_instance* sr, char *iface)
 {
 	struct if_cat_list *walker = sr->inter;
@@ -228,8 +231,12 @@ int is_internal(struct sr_instance* sr, char *iface)
 	return 0;
 }
 
-
-
+/***************************************************************************
+ * Determines whether a given connection (based on source and dest IP addresses,
+ * port numbers, and protocol) is valid (i.e. is in the rule table or flow table).
+ * Also, if it is in the flow table, it updates the ttl of the connection.
+ *
+ ***************************************************************************/
 int check_connection(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 					uint8_t protocol, uint16_t port_s, uint16_t port_d)
 {

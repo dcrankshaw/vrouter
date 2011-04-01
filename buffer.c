@@ -17,25 +17,6 @@
 #include "icmp.h"
 
 
-/*Maddie--prolly don't need*/
-/*
-struct packet_buffer* search_buffer(struct packet_state* ps,const uint32_t dest_ip)
-{
-	struct packet_buffer* buf_walker=0;
-	buf_walker=ps->sr->queue;
-	
-	while(buf_walker)
-	{
-		if(buf_walker->gw_IP==dest_ip)
-		{
-			return buf_walker;
-		}
-		buf_walker=buf_walker->next;
-	}
-	return NULL;
-}
-*/
-
 void update_buffer(struct packet_state* ps,struct packet_buffer* queue)
 {
 	struct packet_buffer* buf_walker=0;

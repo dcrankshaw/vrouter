@@ -1,6 +1,12 @@
+/**********************************************************************
+ * Group name: jhugroup1
+ * Members: Daniel Crankshaw, Maddie Stone, Adam Gross
+ * CS344
+ * 4/01/2011
+ **********************************************************************/
+
 #ifndef BUFFER_H
 #define BUFFER_H
-
 
 
 #include <stdio.h>

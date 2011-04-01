@@ -1,5 +1,10 @@
-/****** Header file for ARP functions 
- */
+/**********************************************************************
+ * Group name: jhugroup1
+ * Members: Daniel Crankshaw, Maddie Stone, Adam Gross
+ * CS344
+ * 4/01/2011
+ **********************************************************************/
+ 
 #ifndef ARP_H
 #define ARP_H
 
