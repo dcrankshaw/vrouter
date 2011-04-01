@@ -18,7 +18,7 @@
 #include <string.h>
 
 
-#include "firewall.h"
+#include "fw.h"
 #include "sr_if.h"
 #include "sr_rt.h"
 #include "sr_router.h"
@@ -46,19 +46,19 @@ void sr_init(struct sr_instance* sr)
 	sr->arp_cache=0;
 	sr->queue=0;
 	sr->flow_table = 0;
-	sr->rule_table = 0;
+	sr->rules = 0;
 	sr->ft_size = 0;
 	sr->exter = 0;
 	sr->inter = 0;
-	char* rules = DEF_RULE_TABLE;
-	assert(init_rules_table(sr, rules));
+	char* rule_config = DEF_RULE_TABLE;
+	assert(init_rules_table(sr, rule_config));
 	char *if_config = IFACE_CONFIG;
 	assert(init_if_config(sr, if_config));
 	print_if_config(sr);
 	
 	
 	printf("\n\n");
-	print_rules(sr);
+	print_rule_table(sr);
 	printf("\n\n");
 
 } /* -- sr_init -- */
@@ -281,8 +281,8 @@ int handle_ip(struct packet_state *ps)
 						{ 
 							if(ip_hdr->ip_p == IPPROTO_ICMP)
 							{
-								if(check_connection(ps->sr, ip_hdr->ip_src,
-								ip_hdr->ip_dst, ip_hdr->ip_p, 0, 0) == 0)
+								if(check_connection(ps->sr, ip_hdr->ip_src.s_addr,
+								ip_hdr->ip_dst.s_addr, ip_hdr->ip_p, 0, 0) == 0)
 								/*send 0 if it's an ICMP packet because they don't 
 								have port numbers */
 								{ return 0; }
@@ -298,11 +298,11 @@ int handle_ip(struct packet_state *ps)
 									memmove(&dst_port, (ps->packet + 2), 2);*/
 									src_port = *((uint16_t*)ps->packet);
 									dst_port = *((uint16_t*)(ps->packet + 2));
-									src_port = ntohs(src_port);
-									dst_port = ntohs(dst_port);
+									//src_port = ntohs(src_port);
+									//dst_port = ntohs(dst_port);
 									
-									if(check_connection(ps->sr, ip_hdr->ip_src,
-									ip_hdr->ip_dst, ip_hdr->ip_p, src_port, dst_port) == 0)
+									if(check_connection(ps->sr, ip_hdr->ip_src.s_addr,
+									ip_hdr->ip_dst.s_addr, ip_hdr->ip_p, src_port, dst_port) == 0)
 									{
 										return 0;
 									}
@@ -359,8 +359,8 @@ int handle_ip(struct packet_state *ps)
 					/*need at least 4 bytes for the dest and source ports */
 					if(ip_hdr->ip_p == IPPROTO_ICMP)
 					{
-						if(check_connection(ps->sr, ip_hdr->ip_src,
-							ip_hdr->ip_dst, ip_hdr->ip_p, 0, 0) == 0)
+						if(check_connection(ps->sr, ip_hdr->ip_src.s_addr,
+							ip_hdr->ip_dst.s_addr, ip_hdr->ip_p, 0, 0) == 0)
 							/*send 0 if it's an ICMP packet because they don't 
 							have port numbers */
 						{ return 0; }
@@ -370,12 +370,21 @@ int handle_ip(struct packet_state *ps)
 					{
 						if(ps->len >= 4)	/* Need at least 4 bytes for the 2 port numbers */
 						{
+							
+							
+							/*memmove(&src_port, ps->packet, 2);
+							memmove(&dst_port, (ps->packet + 2), 2);*/
+							
 							src_port = 0;
-							memmove(&src_port, ps->packet, 2);
 							dst_port = 0;
-							memmove(&dst_port, (ps->packet + 2), 2);
-							if(check_connection(ps->sr, ip_hdr->ip_src,
-							ip_hdr->ip_dst, ip_hdr->ip_p, src_port, dst_port) == 0)
+							src_port = *((uint16_t*)ps->packet);
+							dst_port = *((uint16_t*)(ps->packet + 2));
+							//src_port = ntohs(src_port);
+							//dst_port = ntohs(dst_port);
+							
+							
+							if(check_connection(ps->sr, ip_hdr->ip_src.s_addr,
+							ip_hdr->ip_dst.s_addr, ip_hdr->ip_p, src_port, dst_port) == 0)
 							{
 								return 0;
 							}
@@ -390,28 +399,48 @@ int handle_ip(struct packet_state *ps)
 			{
 				if(ip_hdr->ip_p == IPPROTO_ICMP)
 					{
-						if(add_ft_entry(ps->sr, ip_hdr->ip_src,
+						if(!tell_valid(ps->sr, ip_hdr->ip_dst.s_addr, ip_hdr->ip_src.s_addr,ip_hdr->ip_p, 0, 0))
+						{
+							return 0;
+						}
+						
+						
+						/*if(add_ft_entry(ps->sr, ip_hdr->ip_src,
 							ip_hdr->ip_dst, ip_hdr->ip_p, 0, 0) == 0)
 						{ return 0; }
 						if(add_ft_entry(ps->sr, ip_hdr->ip_dst,
 							ip_hdr->ip_src,ip_hdr->ip_p, 0, 0) == 0)
-						{ return 0; }
+						{ return 0; }*/
 					}
 					else if(ip_hdr->ip_p == IPPROTO_TCP 
 						|| ip_hdr->ip_p == IPPROTO_UDP)
 					{
 						if(ps->len >= 4)	/* Need at least 4 bytes for the 2 port numbers */
 						{
-							src_port = 0;
+							/*src_port = 0;
 							memmove(&src_port, ps->packet, 2);
 							dst_port = 0;
-							memmove(&dst_port, (ps->packet + 2), 2);
-							if(add_ft_entry(ps->sr, ip_hdr->ip_src,
+							memmove(&dst_port, (ps->packet + 2), 2);*/
+							
+							src_port = 0;
+							dst_port = 0;
+							src_port = *((uint16_t*)ps->packet);
+							dst_port = *((uint16_t*)(ps->packet + 2));
+							//src_port = ntohs(src_port);
+							//dst_port = ntohs(dst_port);
+							/*if(add_ft_entry(ps->sr, ip_hdr->ip_src,
 								ip_hdr->ip_dst, ip_hdr->ip_p, src_port, dst_port) == 0)
 							{ return 0; }
 							if(add_ft_entry(ps->sr, ip_hdr->ip_dst,
-								ip_hdr->ip_src, ip_hdr->ip_p, src_port, dst_port) == 0)
-							{ return 0; }
+								ip_hdr->ip_src, ip_hdr->ip_p, dst_port, src_port) == 0)
+							{ return 0; }*/
+							
+							if(!tell_valid(ps->sr, ip_hdr->ip_dst.s_addr, ip_hdr->ip_src.s_addr, ip_hdr->ip_p, dst_port, src_port))
+							{
+								return 0;
+							}
+							
+							
 							
 						}
 						else { return 0; }

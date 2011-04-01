@@ -56,8 +56,8 @@ struct sr_instance
     FILE* logfile;
     struct arp_cache_entry* arp_cache;
     struct packet_buffer* queue;
-    struct ft* flow_table;
-    struct rule* rule_table;
+    struct ft_entry* flow_table;
+    struct ft_entry* rules;
     int ft_size;
     struct if_cat_list* inter;
     struct if_cat_list* exter;
