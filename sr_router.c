@@ -262,6 +262,7 @@ int handle_ip(struct packet_state *ps)
 		
 
 		int found_case = 0;	/*used to determine which loops to go into*/
+		
 		/*Deals with router as destination*/
 		if(!found_case)
 		{
@@ -337,7 +338,7 @@ int handle_ip(struct packet_state *ps)
 					iph->ip_sum = 0;
 					iph->ip_sum = cksum((uint8_t *)iph, sizeof(struct ip));
 					iph->ip_sum = htons(iph->ip_sum);
-					break;
+					return 1;
 				}
 				else
 				{
@@ -403,14 +404,6 @@ int handle_ip(struct packet_state *ps)
 						{
 							return 0;
 						}
-						
-						
-						/*if(add_ft_entry(ps->sr, ip_hdr->ip_src,
-							ip_hdr->ip_dst, ip_hdr->ip_p, 0, 0) == 0)
-						{ return 0; }
-						if(add_ft_entry(ps->sr, ip_hdr->ip_dst,
-							ip_hdr->ip_src,ip_hdr->ip_p, 0, 0) == 0)
-						{ return 0; }*/
 					}
 					else if(ip_hdr->ip_p == IPPROTO_TCP 
 						|| ip_hdr->ip_p == IPPROTO_UDP)
