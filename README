@@ -21,3 +21,10 @@ Notes:
 When adding a new packet to the buffer or a new entry to the ARP cache, it should look similar
 to the process used to add a new entry to the routing table in sr_load_rt() (sr_rt.c).
 
+
+
+
+Segfaults:
+ft_contains()
+-the flow table has an entry that is something like 20.21.22.23	24.25.....
+-there is a weird entry in the 
