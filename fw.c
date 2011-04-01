@@ -13,7 +13,6 @@
 #include "sr_if.h"
 
 int init_rules_table(struct sr_instance* sr, const char* filename)
-
 {
 
   FILE* fp = 0;
@@ -316,6 +315,7 @@ void add_connect(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 		walker->next = 0;
 		sr->ft_size++;	
 	}
+	print_flow_table(sr);
 }
 
 void remove_stale_entries(struct sr_instance *sr)
@@ -330,7 +330,8 @@ void remove_stale_entries(struct sr_instance *sr)
 			if(prev == 0)
 			{
 				sr->flow_table = sr->flow_table->next;
-				free(walker);
+				/*if(walker)
+				    free(walker);*/
 				walker = sr->flow_table;
 				sr->ft_size--;
 			}
@@ -433,6 +434,31 @@ int rule_contains(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 			walker = walker->next;
 	}
 	return 0;
+}
+
+
+void print_ft_entry(const struct ft_entry* entry)
+{
+    struct in_addr sip;
+    sip.s_addr = entry->ip_s;
+    struct in_addr dip;
+    dip.s_addr = entry->ip_d;
+    printf("%s\t\t",inet_ntoa(sip));
+    printf("%s\t",inet_ntoa(dip));
+    printf("%u\t",entry->protocol);
+    printf("%i\t",entry->port_s);
+    printf("%i\n",entry->port_d);
+}
+
+void print_flow_table(struct sr_instance* sr)
+{
+    printf("Flow Table\nSource IP\tDest IP\tProt\tSource Port\tDest Port\n");
+    struct ft_entry* walker=sr->flow_table;
+    while(walker)
+    {
+        print_ft_entry(walker);
+        walker=walker->next;
+    }
 }
 
 

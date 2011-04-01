@@ -259,6 +259,7 @@ int handle_ip(struct packet_state *ps)
 		
 
 		int found_case = 0;	/*used to determine which loops to go into*/
+		
 		/*Deals with router as destination*/
 		if(!found_case)
 		{
@@ -415,14 +416,6 @@ int handle_ip(struct packet_state *ps)
 							ps->rt_entry = get_routing_if(ps, iph->ip_dst);
 							return 1;
 						}
-						
-						
-						/*if(add_ft_entry(ps->sr, ip_hdr->ip_src,
-							ip_hdr->ip_dst, ip_hdr->ip_p, 0, 0) == 0)
-						{ return 0; }
-						if(add_ft_entry(ps->sr, ip_hdr->ip_dst,
-							ip_hdr->ip_src,ip_hdr->ip_p, 0, 0) == 0)
-						{ return 0; }*/
 					}
 					else if(ip_hdr->ip_p == IPPROTO_TCP 
 						|| ip_hdr->ip_p == IPPROTO_UDP)

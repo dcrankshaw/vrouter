@@ -15,8 +15,9 @@
 
 
 #define TTL_INCREMENT	10
-#define	MAX_TTL_UPDATES	10
-#define MAX_FT_SIZE	2
+#define	MAX_TTL_UPDATES	80
+#define MAX_FT_SIZE	30
+
 
 /* the struct containing the list of all internal/external interfaces */
 struct if_cat_list
@@ -51,6 +52,7 @@ void add_connect(struct sr_instance *, uint32_t , uint32_t , uint8_t , uint16_t 
 void remove_stale_entries(struct sr_instance *);
 struct ft_entry* ft_contains(struct sr_instance *, uint32_t , uint32_t ,uint8_t , uint16_t , uint16_t );
 int rule_contains(struct sr_instance *, uint32_t , uint32_t , uint8_t , uint16_t , uint16_t );
-
+void print_flow_table(struct sr_instance* );
+void print_ft_entry(const struct ft_entry* );
 
 #endif

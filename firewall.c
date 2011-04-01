@@ -2,29 +2,18 @@
 
 
 #include <stdio.h>
-
 #include <stdlib.h>
-
 #include <time.h>
-
 #include <assert.h>
-
 #include <arpa/inet.h>
-
 #include <sys/types.h>
-
 #include <string.h>
-
 #include <unistd.h>
 
 
 
 #include "firewall.h"
-
 #include "sr_if.h"
-
-
-
 
 
 /* returns 1 if success, 0 if error */
@@ -32,7 +21,6 @@
 int init_rules_table(struct sr_instance* sr, const char* filename)
 
 {
-
   FILE* fp = 0;
   char line[BUFSIZ];
   char sourceIPin[32];
@@ -77,7 +65,6 @@ fp = fopen(filename,"r");
 
 int init_if_config(struct sr_instance* sr, const char* filename)
 {
-
   FILE* fp = 0;
   char line[BUFSIZ];
   char if_name[sr_IFACE_NAMELEN];
@@ -358,37 +345,21 @@ int add_ft_entry(struct sr_instance* sr, struct in_addr srcIP, struct in_addr ds
 {
 
     printf("Entered add entry method.\n");
-
-    printf("-------FLOW TABLE --------");
-
+    printf("-------FLOW TABLE --------\n");
     print_ft(sr);
-
     
-
     struct ft* ft_walker = 0;
-
-
-
     int maxSize = MAX_FT_SIZE;
 
-
-
   /* check to see if table is full */
-
-  if(sr->ft_size == maxSize)
-
+  if(sr->ft_size >= maxSize)
     {
-
-        printf("Rule table is max size.\n");
-
-      remove_old_ft_entries(sr);
-
+        printf("Flow table is max size.\n");
+        remove_old_ft_entries(sr);
     }
 
     /* if remove_old_ft_entries() didn't remove anything */
-
-  if(sr->ft_size == maxSize)
-
+  if(sr->ft_size >= maxSize)
     {
 
 	/***************************************
@@ -396,40 +367,26 @@ int add_ft_entry(struct sr_instance* sr, struct in_addr srcIP, struct in_addr ds
 	****************************************/
 	printf("Delete failed and Rule table is still max size.\n");
 
-      return 0;  /* ICMP "connection refused" returned and log entry generated */
-
+return 0;  /* ICMP "connection refused" returned and log entry generated */
     }
 
-  
-
   /* -------------------------------------
-
    * Check if flow table already contains the connection
-
    * If it does, we need to update ttl, but not re-add
-
    * -------------------------------------*/
 
    if(ft_contains(sr, srcIP, dstIP, IPprotocol, srcPort, dstPort) == 1)
-
    {
-
         printf("Connection already contained in flow table.\n");
-
         return 1;
-
    }
 
   
 
   printf("Going to add now.\n");
-
   /* see if the table is empty */
-
   if(sr->flow_table == 0)
-
     {
-
       sr->flow_table = (struct ft*)malloc(sizeof(struct ft));
 
       assert(sr->flow_table);
@@ -446,7 +403,6 @@ int add_ft_entry(struct sr_instance* sr, struct in_addr srcIP, struct in_addr ds
 
       sr->flow_table->dstPort = dstPort;
 
-      /*sr->flow_table->creation_time = time(NULL);*/
       time(&sr->flow_table->creation_time);
 
       sr->flow_table->ttl += TTL_INCREMENT;
@@ -518,16 +474,13 @@ int add_ft_entry(struct sr_instance* sr, struct in_addr srcIP, struct in_addr ds
 int ft_contains(struct sr_instance* sr, struct in_addr srcIP, struct in_addr dstIP, uint8_t IPprotocol, int srcPort, int dstPort)
 
 {
-
 	struct ft* ft_walker = 0;
 
   	time_t maxTTL = MAX_ENTRY_TTL;
   	int cur = 0;
-
-  	ft_walker = sr->flow_table;
-
+ft_walker = sr->flow_table;
+  	
   	while(ft_walker)
-
     {
     	if((ft_walker->srcIP.s_addr == srcIP.s_addr) && (ft_walker->dstIP.s_addr == dstIP.s_addr) && (ft_walker->IPprotocol == IPprotocol) && (ft_walker->srcPort == srcPort) && (ft_walker->dstPort == dstPort))
 
@@ -536,8 +489,15 @@ int ft_contains(struct sr_instance* sr, struct in_addr srcIP, struct in_addr dst
 			
 			cur = time(NULL);
 			/*Check if packet is expired*/
-	  		if((cur - ft_walker->creation_time > ft_walker->ttl) || (ft_walker->ttl > maxTTL))
+	  		if((cur - ft_walker->creation_time )> ft_walker->ttl)
 	  		{
+	  		   printf("CURrent time hates us.\n");
+	  		   return 0;
+	  		  }
+	  		    
+	  		    if(ft_walker->ttl > maxTTL)
+	        {
+	  			printf("ttl sucks.\n");
 	  			return 0;
 	  		}
 
@@ -657,9 +617,7 @@ void print_ft(struct sr_instance* sr)
 
 
 
-  printf("Source IP\tDest IP\tProtocol\tSource Port\tDest Port\tTTL\n");
-
-
+printf("Source IP\tDest IP\tProtocol\tSource Port\tDest Port\tTTL\n");
 
   ft_walker = sr->flow_table;
 
@@ -684,12 +642,9 @@ void print_ft(struct sr_instance* sr)
 void print_ft_entry(struct ft* entry)
 
 {
-
   assert(entry);
-
-  
-
-  printf("%s\t\t",inet_ntoa(entry->srcIP));
+ 
+ printf("%s\t\t",inet_ntoa(entry->srcIP));
 
   printf("%s\t\t",inet_ntoa(entry->dstIP));
 
@@ -708,107 +663,48 @@ void print_ft_entry(struct ft* entry)
 void remove_old_ft_entries(struct sr_instance* sr)
 
 {
-
   struct ft* ft_walker = 0;
-
   struct ft* prev = 0;
-
   struct ft* del = 0;
-
   time_t cur = time(NULL);
-
   int maxTTL = MAX_ENTRY_TTL;
 
-
-
   ft_walker = sr->flow_table;
-
   print_ft(sr);
-
   while(ft_walker)
-
   {
-
   	if((cur - ft_walker->creation_time > ft_walker->ttl) || (ft_walker->ttl > maxTTL))
-
   	{
-
   		if(prev == 0)
-
   		{
-
   			del = ft_walker;
-
   			sr->flow_table = sr->flow_table->next;
-
   			ft_walker = sr->flow_table;
-
   			sr->ft_size--;
-
   			if(del)
-
   				free(del);
-
   		}
-
   		else if(!ft_walker->next)
-
   		{
-
-			/*
-
-			prev->next=NULL;
-
-			sr->ft_size--;
-
-			if(ft_walker)
-
-				free(ft_walker);
-
-				*/
-
-				free(prev->next);
-
-				sr->ft_size--;
-
-				ft_walker = 0;
-
+            free(prev->next);
+            sr->ft_size--;
+            ft_walker = 0;
 		}
-
 		else
-
 		{
-
 			prev->next=ft_walker->next;
-
 			sr->ft_size--;
-
 			if(ft_walker)
-
 				free(ft_walker);
-
 			ft_walker = prev->next;
-
 		}
-
 	}
-
 	else
-
 	{
-
 		prev=ft_walker;
-
 		ft_walker=ft_walker->next;
-
 	}
-
-	
-
   }
-
-  
-
 } /* end remove_old_ft_entries() */
 
 
