@@ -246,11 +246,9 @@ int is_internal(struct sr_instance* sr, char *iface)
 int check_connection(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 					uint8_t protocol, uint16_t port_s, uint16_t port_d)
 {
-	printf("Currently checking connection\n");
 	
 	if(rule_contains(sr, ip_s, ip_d, protocol, port_s, port_d))
 	{
-		printf("This matches a rule\n");
 		return 1;
 	}
 	struct ft_entry *ent = ft_contains(sr, ip_s, ip_d, protocol, port_s, port_d);
@@ -258,7 +256,6 @@ int check_connection(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 	{
 		ent->exp_time += TTL_INCREMENT;
 		ent->ttl_updates++;
-		printf("This matches a current flow table connection\n");
 		return 1;
 	}
 	return 0;
@@ -337,7 +334,6 @@ void add_connect(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 		walker->next = 0;
 		sr->ft_size++;	
 	}
-	print_flow_table(sr);
 }
 
 /*******************************************************************

@@ -6,22 +6,40 @@ Group 1
       Maddie Stone
       Adam Gross
 
-Our implementation of Stanford's VNS stub code provides for a fully functional router, allowing internal machines to create outbound connections and transfer packets.  The router is capable of responding to ICMP and ARP queries.  It forwards packets from the Internet at large to the internal application servers.  Below is a breakdown of the specific designs:
+Our implementation of Stanford's VNS stub code provides for a fully 
+functional router, allowing internal machines to create outbound connections 
+and transfer packets.  The router is capable of responding to ICMP and ARP 
+queries.  It forwards packets from the Internet at large to the internal application 
+servers.  Below is a breakdown of the specific designs:
 
 ARP packet handling:
-     The router generates ARP requests when it doesn't know the MAC address of a specified IP address destination.  When an interface of the router receives an ARP request, it replies with the interface's MAC address in an ARP reply packet.
+     The router generates ARP requests when it doesn't know the MAC address of 
+     a specified IP address destination.  When an interface of the router receives 
+     an ARP request, it replies with the interface's MAC address in an ARP reply packet.
 	 
 ICMP packet handling:
-    Correctly handles pings and traceroutes through the router.  The router generates ICMP responses based on ICMP "echo" packets (type 8).  Any other ICMP requests are dropped by the router.  When the router receives a packet for which the TTL has expired, an ICMP "timeout" packet is generated and sent back to the packet's sender.  If 5 ARPs receive no response, an ICMP "destination unreachable: port unreachable" packet is generated and sent.  If the flow table is full, an ICMP "destination unreachable: host unreachable" packet is generated and sent.
+    Correctly handles pings and traceroutes through the router.  The router generates 
+    ICMP responses based on ICMP "echo" packets (type 8).  Any other ICMP requests are 
+    dropped by the router.  When the router receives a packet for which the TTL has expired, 
+    an ICMP "timeout" packet is generated and sent back to the packet's sender.  If 5 ARPs
+    receive no response, an ICMP "destination unreachable: port unreachable" packet is 
+    generated and sent. If the flow table is full, an ICMP "destination unreachable: 
+    host unreachable" packet is generated and sent.
 
 TCP/UDP packet handling:
 	Sends ICMP "port unreachable" when a TCP/UDP packet is destined for an internal interface.
 	Correctly forwards packets destined for the internal application servers.
 
 Firewall access protection:
-	The primary function of the firewall is to prevent the router from forwarding unwanted packets to the internal application servers.  Interfaces are defined to be either external (eth0) or internal (eth1 and eth2).  Packets arriving to the external interface and destined to an internal interface are silently dropped.  Packets may only be forwarded if an internal application server has initiated the connection.
+	The primary function of the firewall is to prevent the router from forwarding
+	unwanted packets to the internal application servers.  Interfaces are defined to
+	be either external or internal.  Packets arriving to the external interface 
+	and destined to an internal interface are silently dropped.  Packets may only
+	be forwarded if an internal application server has initiated the connection, or
+	the external application matches a rule in the rule table.
 	
 Configuration settings:
-	To change the filenames for the rules table and the interface configuration, see the static definitions in sr_router.c.
-	To change the TTL values and maximum flow table size, see the static definitions in fw.h.
-	To change the ARP timeout value, see the static definition in arp.h.
+	To change the filenames for the rules table and the interface configuration,
+	see the definitions in sr_router.c.
+	To change the TTL values and maximum flow table size, see the definitions in fw.h.
+	To change the ARP timeout value, see the definition in arp.h.

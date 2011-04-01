@@ -21,7 +21,7 @@
 
 
 
-#define TTL_INCREMENT	10
+#define TTL_INCREMENT	50
 #define	MAX_TTL_UPDATES	80
 #define MAX_FT_SIZE	30
 
