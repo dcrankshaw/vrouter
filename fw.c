@@ -12,6 +12,10 @@
 #include "sr_router.h"
 #include "sr_if.h"
 
+/*******************************************************************
+*   Initializes Rules Table that lists external IP addresses that are allowed through server and 
+*   which internal IP address they are allowed to access.
+*******************************************************************/
 int init_rules_table(struct sr_instance* sr, const char* filename)
 {
 
@@ -32,7 +36,8 @@ int init_rules_table(struct sr_instance* sr, const char* filename)
       return 0;
     }
 
-fp = fopen(filename,"r");
+/*Read in information from file.*/
+fp = fopen(filename,"r");   
 
  while(fgets(line,BUFSIZ,fp) != 0)
 	{
@@ -48,27 +53,26 @@ fp = fopen(filename,"r");
 	  return 0;
 	}
 	  add_rule(sr, srcIP.s_addr, dstIP.s_addr, (uint8_t) IPprotocol, (uint16_t) srcPort, (uint16_t) dstPort);
-	  printf("Adding to rule table:\n");
-	  printf("%s\t%s\t%u\t%u\t%u\n",sourceIPin, destIPin, IPprotocol, srcPort, dstPort);
 	}
   return 1;
 
 }
 
+/*******************************************************************
+*   Add a rule to rule table.
+*******************************************************************/
 void add_rule(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 					uint8_t protocol, uint16_t port_s, uint16_t port_d)
 {
-	if(sr->rules == 0)
+	if(sr->rules == 0)  /*Empty Rule Table*/
 	{
 
 		sr->rules = (struct ft_entry*) malloc(sizeof(struct ft_entry));
 		sr->rules->ip_s = ip_s;
 		sr->rules->ip_d = ip_d;
 		
-		
 		struct in_addr dip;
 		dip.s_addr = sr->rules->ip_d;
-		printf("Dest IP added to rule: %s\n", inet_ntoa(dip));
 		
 		sr->rules->protocol = protocol;
 		sr->rules->port_s = port_s;
@@ -77,7 +81,7 @@ void add_rule(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 		sr->rules->ttl_updates = 0;
 		sr->rules->next = 0;
 	}
-	else
+	else                /* Add new entry to end. */
 	{
 		struct ft_entry *walker = sr->rules;
 		while(walker->next)
@@ -88,24 +92,19 @@ void add_rule(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 		walker=walker->next;
 		walker->ip_s = ip_s;
 		walker->ip_d = ip_d;
-		
-		struct in_addr dip;
-		dip.s_addr = walker->ip_d;
-		printf("Dest IP added to rule: %s\n", inet_ntoa(dip));
-		
 		walker->protocol = protocol;
 		walker->port_s = port_s;
 		walker->port_d = port_d;
-		walker->exp_time = 0;
-		walker->ttl_updates = 0;
+		walker->exp_time = 0;       /* Never will expire. */
+		walker->ttl_updates = 0;    /* Will never be updated. */
 		walker->next = 0;
 	}
 }
 
-
-
-/* returns 1 if success, 0 if error */
-
+/*******************************************************************
+*   Reads in list of internal and external interfaces. Adds to external interface list and internal
+*   interface list. Will allow multiple external interfaces.
+*******************************************************************/
 int init_if_config(struct sr_instance* sr, const char* filename)
 {
 
@@ -123,54 +122,57 @@ int init_if_config(struct sr_instance* sr, const char* filename)
       perror("access");
       return 0;
     }
-fp = fopen(filename,"r");
+    fp = fopen(filename,"r");
 
- while(fgets(line,BUFSIZ,fp) != 0)
- {
-	  sscanf(line,"%s %s",if_name,category);
-	  if(strcmp(category, exter) == 0)
-	  {
-	  	if(sr->exter == 0)
-	  	{
-	  		sr->exter = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
-	  		strncpy(sr->exter->name, if_name, sr_IFACE_NAMELEN);
-	  		sr->exter->next = 0;
-	  		ext_walker = sr->exter;
-	  	}
-	  	else
-	  	{
-	  		ext_walker->next = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
-	  		ext_walker = ext_walker->next;
-	  		strncpy(ext_walker->name, if_name, sr_IFACE_NAMELEN);
-	  		ext_walker->next = 0;
-	  	}
-	  }
-	  else if(strcmp(category, inter) == 0)
-	  {
-	  	if(sr->inter == 0)
-	  	{
-	  		sr->inter = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
-	  		strncpy(sr->inter->name, if_name, sr_IFACE_NAMELEN);
-	  		sr->inter->next = 0;
-	  		int_walker = sr->inter;
-	  	}
-	  	else
-	  	{
-	  		int_walker->next = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
-	  		int_walker = int_walker->next;
-	  		strncpy(int_walker->name, if_name, sr_IFACE_NAMELEN);
-	  		int_walker->next = 0;
-	  	}
-	  }
-	  else
-	  {
-	  	printf("Error with the interface configuration file\n");
-	  }
-  }
+    while(fgets(line,BUFSIZ,fp) != 0)
+    {
+        sscanf(line,"%s %s",if_name,category);
+        if(strcmp(category, exter) == 0)
+        {
+            if(sr->exter == 0)
+            {
+                sr->exter = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
+                strncpy(sr->exter->name, if_name, sr_IFACE_NAMELEN);
+                sr->exter->next = 0;
+                ext_walker = sr->exter;
+            }
+            else
+            {
+                ext_walker->next = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
+                ext_walker = ext_walker->next;
+                strncpy(ext_walker->name, if_name, sr_IFACE_NAMELEN);
+                ext_walker->next = 0;
+            }
+        }
+        else if(strcmp(category, inter) == 0)
+        {
+            if(sr->inter == 0)
+            {
+                sr->inter = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
+                strncpy(sr->inter->name, if_name, sr_IFACE_NAMELEN);
+                sr->inter->next = 0;
+                int_walker = sr->inter;
+            }
+            else
+            {
+                int_walker->next = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
+                int_walker = int_walker->next;
+                strncpy(int_walker->name, if_name, sr_IFACE_NAMELEN);
+                int_walker->next = 0;
+            }
+        }
+        else
+        {
+            printf("Error with the interface configuration file\n");
+        }
+    }
   return 1;	
 }
 
-/* prints the lists containing the internal and external interfaces */
+
+/*******************************************************************
+* prints the lists containing the internal and external interfaces
+*******************************************************************/
 void print_if_config(struct sr_instance* sr)
 {
 	printf("Interface Config:\n");
@@ -194,7 +196,10 @@ void print_if_config(struct sr_instance* sr)
 	printf("\n");
 }
 
-/* determines whether a given interface is external based on the name */
+
+/*******************************************************************
+* determines whether a given interface is external based on the name
+*******************************************************************/
 int is_external(struct sr_instance* sr, char *iface)
 {
 	struct if_cat_list *walker = sr->exter;
@@ -231,6 +236,7 @@ int is_internal(struct sr_instance* sr, char *iface)
 	return 0;
 }
 
+
 /***************************************************************************
  * Determines whether a given connection (based on source and dest IP addresses,
  * port numbers, and protocol) is valid (i.e. is in the rule table or flow table).
@@ -258,6 +264,12 @@ int check_connection(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 	return 0;
 }
 
+/*******************************************************************
+*   Called when packet is received from internal IP and needs to be sent to external. Checks if 
+*   entry is already in flow table and still valid. If not, adds to flow table. If flow table is 
+*   greater than or equal to max size, the invalid entries are deleted. If flow table is still 
+*   greater than or equal to max size, an ICMP Port Unreachable is sent.
+*******************************************************************/
 int tell_valid(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 					uint8_t protocol, uint16_t port_s, uint16_t port_d)
 {
@@ -280,13 +292,16 @@ int tell_valid(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 		}
 		else
 		{
-			return 0;
+			return 0;   /* ICMP host unreachable will be sent. */
 		}
 	}
 	return 1;
 
 }
 
+/*******************************************************************
+*   After internal IP initiates a connection, the connection is added to the flow table. 
+*******************************************************************/
 void add_connect(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 					uint8_t protocol, uint16_t port_s, uint16_t port_d)
 {
@@ -325,6 +340,10 @@ void add_connect(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 	print_flow_table(sr);
 }
 
+/*******************************************************************
+*   Removes entries that are no longer valid based on expiration time or number of times TTL was
+*   updated.
+*******************************************************************/
 void remove_stale_entries(struct sr_instance *sr)
 {
 	struct ft_entry *prev = 0;
@@ -337,8 +356,6 @@ void remove_stale_entries(struct sr_instance *sr)
 			if(prev == 0)
 			{
 				sr->flow_table = sr->flow_table->next;
-				/*if(walker)
-				    free(walker);*/
 				walker = sr->flow_table;
 				sr->ft_size--;
 			}
@@ -361,6 +378,10 @@ void remove_stale_entries(struct sr_instance *sr)
 	}
 }
 
+/*******************************************************************
+*   Checks if the header information is contained in the flow table. If it is and still valid, 
+*   return the entry.
+*******************************************************************/
 struct ft_entry* ft_contains(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 					uint8_t protocol, uint16_t port_s, uint16_t port_d)
 {
@@ -389,24 +410,25 @@ struct ft_entry* ft_contains(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_
 	return NULL;
 }
 
+/*******************************************************************
+*   Prints Rule Table.
+*******************************************************************/
 void print_rule_table(struct sr_instance *sr)
 {
-	printf("Rule Table\nSource IP\tDest IP\tProt\tSource Port\tDest Port\n");
-	
-	struct ft_entry *walker = sr->rules;
-	while(walker)
-	{
-		struct in_addr sip;
-		sip.s_addr = walker->ip_s;
-		struct in_addr dip;
-		dip.s_addr = walker->ip_d;
-		printf("Dest IP: %s\n", inet_ntoa(dip));
-		printf("%s\t %s \t %u\t %u\t %u\n", inet_ntoa(sip), inet_ntoa(dip), walker->protocol, 
-				walker->port_s, walker->port_d);
-		walker = walker->next;
-	}
+	printf("-----Rule Table-----\n");
+	printf("Source IP\t\tDest IP\t\tProt\tSource Port\tDest Port\n");
+    struct ft_entry* walker=sr->rules;
+    while(walker)
+    {
+        print_ft_entry(walker);
+        walker=walker->next;
+    }
 }
 
+/*******************************************************************
+*   Checks if external IP and internal dest IP are in rule table. Returns 1 if they are, returns 
+*   NULL if they should not be.
+*******************************************************************/
 int rule_contains(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 					uint8_t protocol, uint16_t port_s, uint16_t port_d)
 {
@@ -443,7 +465,9 @@ int rule_contains(struct sr_instance *sr, uint32_t ip_s, uint32_t ip_d,
 	return 0;
 }
 
-
+/*******************************************************************
+*   Prints flow table entry.
+*******************************************************************/
 void print_ft_entry(const struct ft_entry* entry)
 {
     struct in_addr sip;
@@ -453,13 +477,17 @@ void print_ft_entry(const struct ft_entry* entry)
     printf("%s\t\t",inet_ntoa(sip));
     printf("%s\t",inet_ntoa(dip));
     printf("%u\t",entry->protocol);
-    printf("%i\t",entry->port_s);
+    printf("%i\t\t",entry->port_s);
     printf("%i\n",entry->port_d);
 }
 
+/*******************************************************************
+*   Prints flow table.
+*******************************************************************/
 void print_flow_table(struct sr_instance* sr)
 {
-    printf("Flow Table\nSource IP\tDest IP\tProt\tSource Port\tDest Port\n");
+    printf("-----Flow Table-----\n");
+	printf("Source IP\t\tDest IP\t\tProt\tSource Port\tDest Port\n");
     struct ft_entry* walker=sr->flow_table;
     while(walker)
     {
