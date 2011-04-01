@@ -54,6 +54,7 @@ void sr_init(struct sr_instance* sr)
 	assert(init_rules_table(sr, rules));
 	char *if_config = IFACE_CONFIG;
 	assert(init_if_config(sr, if_config));
+	print_if_config(sr);
 	
 	
 	printf("\n\n");
@@ -292,8 +293,14 @@ int handle_ip(struct packet_state *ps)
 								if(ps->len >= 4)	/* Need at least 4 bytes for the 2 port numbers */
 								{
 									
-									memmove(&src_port, ps->packet, 2);
-									memmove(&dst_port, (ps->packet + 2), 2);
+									
+									/*memmove(&src_port, ps->packet, 2);
+									memmove(&dst_port, (ps->packet + 2), 2);*/
+									src_port = *((uint16_t*)ps->packet);
+									dst_port = *((uint16_t*)(ps->packet + 2));
+									src_port = ntohs(src_port);
+									dst_port = ntohs(dst_port);
+									
 									if(check_connection(ps->sr, ip_hdr->ip_src,
 									ip_hdr->ip_dst, ip_hdr->ip_p, src_port, dst_port) == 0)
 									{

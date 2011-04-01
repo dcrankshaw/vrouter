@@ -32,7 +32,6 @@ int init_rules_table(struct sr_instance* sr, const char* filename)
   int dstPort;
 
   assert(filename);
-
   if(access(filename,R_OK) != 0)
     {
       perror("access");
@@ -42,38 +41,21 @@ int init_rules_table(struct sr_instance* sr, const char* filename)
 fp = fopen(filename,"r");
 
  while(fgets(line,BUFSIZ,fp) != 0)
-
 	{
-
 	  sscanf(line,"%s %s %d %d %d",sourceIPin,destIPin,(int*)&IPprotocol,&srcPort,&dstPort);
-
 	  if(inet_aton(sourceIPin,&srcIP) == 0)
-
 	{
-
 	  fprintf(stderr, "Error loading rules table, cannot convert %s to valid IP\n", sourceIPin);
-
 	  return 0;
-
 	}
-
 	  if(inet_aton(destIPin,&dstIP) == 0)
-
 	{
-
 	  fprintf(stderr, "Error loading rules table, cannot convert %s to valid IP\n", destIPin);
-
 	  return 0;
-
 	}
-
 	  add_rule(sr, srcIP, dstIP, IPprotocol, srcPort, dstPort);
-
 	}
-
   return 1;
-
-	
 
 }
 
@@ -82,7 +64,6 @@ fp = fopen(filename,"r");
 /* returns 1 if success, 0 if error */
 
 int init_if_config(struct sr_instance* sr, const char* filename)
-
 {
   FILE* fp = 0;
   char line[BUFSIZ];
@@ -92,175 +73,116 @@ int init_if_config(struct sr_instance* sr, const char* filename)
   char *inter = FW_INTERNAL;
   struct if_cat_list *int_walker = sr->inter;
   struct if_cat_list *ext_walker = sr->exter;
-
   assert(filename);
-
   if(access(filename,R_OK) != 0)
     {
       perror("access");
       return 0;
     }
-
 fp = fopen(filename,"r");
 
  while(fgets(line,BUFSIZ,fp) != 0)
-
  {
-
 	  sscanf(line,"%s %s",if_name,category);
-
 	  if(strcmp(category, exter) == 0)
-
 	  {
-
 	  	if(sr->exter == 0)
-
 	  	{
-
 	  		sr->exter = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
-
 	  		strncpy(sr->exter->name, if_name, sr_IFACE_NAMELEN);
-
 	  		sr->exter->next = 0;
-
 	  		ext_walker = sr->exter;
-
 	  	}
-
 	  	else
-
 	  	{
-
 	  		ext_walker->next = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
-
 	  		ext_walker = ext_walker->next;
-
 	  		strncpy(ext_walker->name, if_name, sr_IFACE_NAMELEN);
-
 	  		ext_walker->next = 0;
-
 	  	}
-
 	  }
-
 	  else if(strcmp(category, inter) == 0)
-
 	  {
-
 	  	if(sr->inter == 0)
-
 	  	{
-
 	  		sr->inter = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
-
 	  		strncpy(sr->inter->name, if_name, sr_IFACE_NAMELEN);
-
 	  		sr->inter->next = 0;
-
 	  		int_walker = sr->inter;
-
 	  	}
-
 	  	else
-
 	  	{
-
 	  		int_walker->next = (struct if_cat_list *)malloc(sizeof(struct if_cat_list));
-
 	  		int_walker = int_walker->next;
-
 	  		strncpy(int_walker->name, if_name, sr_IFACE_NAMELEN);
-
 	  		int_walker->next = 0;
-
 	  	}
-
 	  }
-
 	  else
-
 	  {
-
 	  	printf("Error with the interface configuration file\n");
-
 	  }
-
   }
-
   return 1;	
-
 }
 
+void print_if_config(struct sr_instance* sr)
+{
+	printf("Interface Config:\n");
+	
+	printf("External interfaces:\t");
+	struct if_cat_list *walker = sr->exter;
+	while(walker)
+	{
+		printf("%s\t", walker->name);
+		walker = walker->next;
+	}
+	printf("\n");
+	
+	walker = sr->inter;
+	printf("Internal interfaces:\t");
+	while(walker)
+	{
+		printf("%s\t", walker->name);
+		walker = walker->next;
+	}
+	printf("\n");
+}
 
 
 int is_external(struct sr_instance* sr, char *iface)
-
 {
-
 	struct if_cat_list *walker = sr->exter;
-
 	while(walker)
-
 	{
-
 		if(strcmp(walker->name, iface) == 0)
-
 		{
-
 			return 1;
-
 		}
-
 		else
-
 		{
-
 			walker = walker->next;
-
 		}
-
 	}
-
 	return 0;
-
 }
-
-
 
 int is_internal(struct sr_instance* sr, char *iface)
-
 {
-
 	struct if_cat_list *walker = sr->inter;
-
 	while(walker)
-
 	{
-
 		if(strcmp(walker->name, iface) == 0)
-
 		{
-
 			return 1;
-
 		}
-
 		else
-
 		{
-
 			walker = walker->next;
-
 		}
-
 	}
-
 	return 0;
-
 }
-
-
-
 
 
 void print_rules(struct sr_instance* sr)
@@ -402,6 +324,7 @@ int add_rule(struct sr_instance* sr, struct in_addr srcIP, struct in_addr dstIP,
   rule_walker->dstIP = dstIP;
 
   rule_walker->IPprotocol = IPprotocol;
+  
 
   rule_walker->srcPort = srcPort;
 
@@ -438,8 +361,13 @@ int add_ft_entry(struct sr_instance* sr, struct in_addr srcIP, struct in_addr ds
     /* if remove_old_ft_entries() didn't remove anything */
   if(sr->ft_size >= maxSize)
     {
-        printf("Delete failed and Rule table is still max size.\n");
-      return 0;  /* ICMP "connection refused" returned and log entry generated */
+
+	/***************************************
+	SEND AN ICMP RESPONSE HOST UNREACHABLE
+	****************************************/
+	printf("Delete failed and Rule table is still max size.\n");
+
+return 0;  /* ICMP "connection refused" returned and log entry generated */
     }
 
   /* -------------------------------------
@@ -475,7 +403,7 @@ int add_ft_entry(struct sr_instance* sr, struct in_addr srcIP, struct in_addr ds
 
       sr->flow_table->dstPort = dstPort;
 
-      sr->flow_table->creation_time = time(NULL);
+      time(&sr->flow_table->creation_time);
 
       sr->flow_table->ttl += TTL_INCREMENT;
 
@@ -547,15 +475,29 @@ int ft_contains(struct sr_instance* sr, struct in_addr srcIP, struct in_addr dst
 
 {
 	struct ft* ft_walker = 0;
-  	int maxTTL = MAX_ENTRY_TTL;
-  	ft_walker = sr->flow_table;
+
+  	time_t maxTTL = MAX_ENTRY_TTL;
+  	int cur = 0;
+ft_walker = sr->flow_table;
   	
   	while(ft_walker)
     {
-    if((ft_walker->srcIP.s_addr == srcIP.s_addr) && (ft_walker->dstIP.s_addr == dstIP.s_addr) && (ft_walker->IPprotocol == IPprotocol) && (ft_walker->srcPort == srcPort) && (ft_walker->dstPort == dstPort))
+    	if((ft_walker->srcIP.s_addr == srcIP.s_addr) && (ft_walker->dstIP.s_addr == dstIP.s_addr) && (ft_walker->IPprotocol == IPprotocol) && (ft_walker->srcPort == srcPort) && (ft_walker->dstPort == dstPort))
+
 		{
-            if(ft_walker->ttl > maxTTL)
+
+			
+			cur = time(NULL);
+			/*Check if packet is expired*/
+	  		if((cur - ft_walker->creation_time )> ft_walker->ttl)
 	  		{
+	  		   printf("CURrent time hates us.\n");
+	  		   return 0;
+	  		  }
+	  		    
+	  		    if(ft_walker->ttl > maxTTL)
+	        {
+	  			printf("ttl sucks.\n");
 	  			return 0;
 	  		}
 
@@ -592,9 +534,7 @@ int rule_contains(struct sr_instance* sr, struct in_addr srcIP, struct in_addr d
 	rule_walker = sr->rule_table;
 
 	while(rule_walker)
-
 	{
-
 		/* if the rule contains a wildcard, temporarily convert the parameter to a wildcard so it will match */
 
 		if(rule_walker->srcIP.s_addr == 0)
@@ -677,9 +617,7 @@ void print_ft(struct sr_instance* sr)
 
 
 
-  printf("Source IP\tDest IP\tProtocol\tSource Port\tDest Port\n");
-
-
+printf("Source IP\tDest IP\tProtocol\tSource Port\tDest Port\tTTL\n");
 
   ft_walker = sr->flow_table;
 
@@ -708,13 +646,15 @@ void print_ft_entry(struct ft* entry)
  
  printf("%s\t\t",inet_ntoa(entry->srcIP));
 
-  printf("%s\t",inet_ntoa(entry->dstIP));
+  printf("%s\t\t",inet_ntoa(entry->dstIP));
 
   printf("%u\t",entry->IPprotocol);
 
   printf("%i\t",entry->srcPort);
 
-  printf("%i\n",entry->dstPort);
+  printf("%i\t",entry->dstPort);
+  int expired = time(NULL) - entry->creation_time - entry->ttl;
+  printf("%u\n",expired);
 
 } /* end print_ft_entry() */
 
